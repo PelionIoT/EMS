@@ -1,7 +1,7 @@
 {
-  "name": "enterprise-monitoring-server",
+  "name": "EMS",
   "version": "0.0.1",
-  "description": "Delelope all the API for monitoring server ",
+  "description": "Deploy all the API for EMS",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -13,16 +13,7 @@
   "bugs": {
     "url": "https://github.com/WigWagCo/EMS/issues"
   },
-  "keywords": [
-    "ui",
-    "user interface",
-    "app",
-    "application",
-    "mobile",
-    "web",
-    "server"
-  ],
-  "author": "Bhoopesh Singh",
+  "author": "Bhoopesh,aditya",
   "license": "ISC",
   "dependencies": {
     "body-parser": "^1.18.2",
