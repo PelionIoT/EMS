@@ -12,14 +12,31 @@ let getEMSData = (req,res) => {
 
     if(relayID !== undefined && deviceID !== undefined){
 
-        getDeviceLogs(req,res,accountID,siteID,relayID,deviceID);
+        //getDeviceLogs(req,res,accountID,siteID,relayID,deviceID);
 
-        /* Get device states
-        req.dcs.getResourceState(siteID, `id=\"${deviceID}\"`, null).then(function(resp, err) {
-            res.status(200).send(resp.state[deviceID])
+        var resultData = {
+            "data": {
+    
+            }
+        };
+
+        // Get device states
+        req.dcs.getResourceState(siteID, `id=\"${deviceID}\"`, null).then(function(resp) {
+            
+            var result = Object.keys(resp.state[deviceID]);
+
+            getDeviceLogs(req,res,accountID,siteID,relayID,deviceID,result[0]).then(function(response){
+            
+                console.log(response);
+                res.status(200).send(response);
+
+            });
+            
+            //res.status(200).send(result);
+
         },function(err) {
             res.status(500).send(err)
-        })*/
+        })
     
     
     } else {
@@ -28,13 +45,13 @@ let getEMSData = (req,res) => {
     
 };
 
-let getDeviceLogs = (req,res,accountID,siteID,relayID,deviceID) => {
-    
+let getDeviceLogs = (req,res,accountID,siteID,relayID,deviceID,stateID) => {
+    return new Promise(function(resolve,reject){
     var cloudurl = req.headers.cloudurl;
     var authToken = req.headers.authorization;
 
     var url = cloudurl + "/api/device_logs?account=" + accountID + "&site=" + siteID 
-              + "&relay=" + relayID + "&device=" + deviceID;
+              + "&relay=" + relayID + "&device=" + deviceID + "&event=state-" + stateID;
 
     var options = {
         uri: url,
@@ -47,14 +64,14 @@ let getDeviceLogs = (req,res,accountID,siteID,relayID,deviceID) => {
      
     rp(options)
         .then(function (response) {
-            console.log(response);
-            res.status(200).send(response);
+            resolve(response);
         })
         .catch(function (err) {
             // API call failed...
             console.log(err);
+            reject(err);
         });
-
+    });
 };
 
 module.exports = {
