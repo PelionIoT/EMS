@@ -1,0 +1,1303 @@
+swagger: '2.0'
+info:
+  title: Symphonyd RMI API
+  description: A modern API to control remote systems
+  version: "1.0"
+# the domain of the service
+#host: api.wigwag.io
+# array of all schemes that your API supports
+#schemes:
+#  - https
+# will be prefixed to all paths
+basePath: /api
+consumes:
+  - application/json
+produces:
+  - application/hal+json
+securityDefinitions:
+  Bearer:
+    type: apiKey
+    name: Authorization
+    in: header
+    description: A bearer token must be included in the Authorization header of all requests of the format 'Bearer {access_token}'. In other words, in every API request you must concatentate 'Bearer' and a valid access token returned by the /oauth/access_token endpoint with a space in between and put this into the Authorization header of your request.
+security:
+  - Bearer: []
+responses:
+  Unauthorized:
+    description: The token provided was expired or invalid. If the token has expired, resubmit client credentials for a new token.
+tags:
+  - name: Oauth
+    description: Endpoints for creating access tokens to use with the API
+  - name: Forwarding Endpoints
+    description: Webhook configuration for various event types
+  - name: Site Management
+    description: Create, organize, setup and manage sites
+  - name: Site Resource Management
+    description: Organize, control, and query resources within a site
+  - name: Site Database
+    description: Query and update the shared database at a site
+  - name: Site History
+    description: Query event history of a site
+  - name: Requests
+    description: Execute and manage batch command, state get, and state set operations on a set of resources
+  - name: Subscriptions
+    description: Set up subscriptions to certain types of events to be forwarded to the subscription webhook endpoint
+  - name: Relay Management
+    description: Get relay statistics and move relays between accounts
+  - name: Alerts
+    description: Query and manage alerts
+  - name: Root
+    description: API entry point. Gives links to other accessible resources
+  - name: User Management
+    description: Query and manage users in an account
+  - name: API Keys
+    description: Create and manage API keys for your account
+  - name: Site Groups
+    description: Put sites into a hierarchy
+  - name: Account Management
+    description: Query and manage accounts
+########################################## enumerate API
+paths:
+  /:
+    get:
+      summary: Get Root Paths
+      description: |
+        Gives the client the root paths of different types of resources
+      tags:
+        - Root
+      responses:
+        200:
+          description: Links to available resources. Depending on the permission level granted to the API client, some of these links may not be accessbile.
+          schema:
+            type: object
+            properties:
+              version:
+                type: string
+              _links:
+                type: object
+                properties:
+                  self:
+                    type: object
+                    properties:
+                      href:
+                        type: string
+                  jobs:
+                    type: object
+                    properties:
+                      href:
+                        type: string
+                  users:
+                    type: object
+                    properties:
+                      href:
+                        type: string
+                  clients:
+                    type: object
+                    properties:
+                      href:
+                        type: string
+        400:
+          description: This indicates that one or more of the query parameters was improperly formatted
+        401:
+          $ref: '#/responses/Unauthorized'
+        500:
+          description: An unexpected error occurred
+####################################### AUTH
+  /oauth/access_token:
+    post:
+      description: The 'username' and 'password' fields should be used if using the 'password' grant type. 'client_id' and 'client_secret' are used in conjunction with the 'client_credentials' grant type. An account ID can be specified to obtain an access token for a particular account when using the 'password' grant type since users can belong to multiple accounts.
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/OauthAccessTokenRequest'
+      tags:
+        - Oauth
+      responses:
+        200:
+          description: 'Information about the access token grant'
+          schema:
+            $ref: '#/definitions/OauthAccessTokenResponse'
+        400:
+          description: Bad request. Invalid request format. The grant_type parameter may have been invalid or the client_id or client_secret parameters were missing
+        401:
+          description: 'Unauthorized. The provided client credentials were not valid.'
+  /oauth/login:
+    post:
+      description: This is identical to the /oauth/access_token request but can be used by browser clients or other clients to store access_tokens in a cookie. The response of this request will set a secure 'access_token' cookie. This prevents the client from needing to manually insert the access token into the Authorization header for each request.
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/OauthAccessTokenRequest'
+      tags:
+        - Oauth
+      responses:
+        200:
+          description: 'Information about the access token grant'
+          schema:
+            $ref: '#/definitions/OauthAccessTokenResponse'
+        400:
+          description: Bad request. Invalid request format. The grant_type parameter may have been invalid or the client_id or client_secret parameters were missing
+        401:
+          description: 'Unauthorized. The provided client credentials were not valid.'
+    delete:
+      description: This will remove an 'access_token' cookie from a client that previously made a POST call to /oauth/login
+      tags:
+        - Oauth
+      responses:
+        200:
+
+###################### /statsConfig
+  /client/{clientID}/statsConfig:
+    get:
+      summary: Get a clients statConfig data
+      description: |
+        Returns an object which has the setup of a client's stats config parameters
+      tags:
+        - Client Config
+      parameters:
+        - name: 'clientID'
+          in: path
+          required: true
+          type: string
+          description: |
+            The unique client ID
+      responses:
+        200:
+          description: An object with the clients statConfig
+          schema:
+            $ref: '#/definitions/ClientStatsConfig'
+        401:
+          $ref: '#/responses/Unauthorized'
+        404:
+          description: The client does not exist
+        500:
+          description: An unexpected error occurred
+    patch:
+      summary: Modifies a single client's stats config
+      description: |
+        This request accepts an rfc6902 formatted JSON patch that adds or removes a field in the Client's ClientStatsConfig
+      tags:
+        - Client Config
+      parameters:
+        - name: 'clientID'
+          in: path
+          required: true
+          type: string
+          description: |
+            The unique client ID
+        - name: 'body'
+          in: body
+          required: true
+          schema:
+            type: array
+            items:
+              type: object
+              properties:
+                op:
+                  type: string
+                  format: add|remove|replace
+                path:
+                  type: string
+                  format: /
+                value:
+                  type: string
+      responses:
+        200:
+          description: Ok, modification successful
+        401:
+          $ref: '#/responses/Unauthorized'
+        404:
+          description: The client does not exist
+        500:
+          description: An unexpected error occurred
+  /clients/getStatsConfig:
+    post:
+      summary: Get multiple clients statConfig data
+      description: |
+        Returns an object which has the setup of a client's stats config parameters
+      tags:
+        - Client Config
+      parameters:
+        - name: 'body'
+          in: body
+          required: true
+          description: An array of clientIDs
+          schema:
+            type: array
+            items:
+              type: string
+            example: [ "WWRL0000010", "WWRL0000011" ]
+      responses:
+        200:
+          description: An object with the clients statConfig, as a map of 'clientID' to 'ClientStatsConfig'. (Swagger can't show maps well)
+          schema:
+            type: object
+            properties:
+              ClientID:
+                $ref: '#/definitions/ClientStatsConfig'
+        401:
+          $ref: '#/responses/Unauthorized'
+        404:
+          description: Clients not found
+        500:
+          description: An unexpected error occurred
+
+  /clients/statsConfig:
+    post:
+      summary: Change multiple clients statConfig data
+      description: |
+        Bulk modification of client's stats config
+      tags:
+        - Client Config
+      parameters:
+        - name: 'body'
+          in: body
+          required: true
+          description: A map of map of 'clientID' to 'ClientStatsConfig'. (Swagger can't show maps well)
+          schema:
+            type: object
+            properties:
+              ClientID:
+                $ref: '#/definitions/ClientStatsConfig'
+      responses:
+        200:
+          description: Ok, modification successful
+        401:
+          $ref: '#/responses/Unauthorized'
+        404:
+          description: Clients not found
+        500:
+          description: An unexpected error occurred
+    
+##########################################################
+########################################### Job Management
+##########################################################
+
+  /job/{jobName}:
+    post:
+      tags: 
+        - Job Management
+      summary: Create a new Job. This Job can be used on any Client or ClientGroup
+      description: |
+        Create a new job, or replace the job with the same name on the given Client. Unless disabled, the client
+        will automatically start the job as well.
+      parameters:
+        - name: 'jobName'
+          in: path
+          required: true
+          type: string
+          description: |
+            The unique Job name 
+        - name: 'body'
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/Job'  
+      responses:
+        200:
+          description: Ok, job start successful
+        401:
+          $ref: '#/responses/Unauthorized'
+        404:
+          description: The client does not exist
+        500:
+          description: An unexpected error occurred
+    
+
+  /clients/{clientID}/jobStatus:
+    get:
+      tags: 
+        - Job Management
+      summary: List all jobs on Client
+      description: |
+        Will list all jobs which are known by the Client, including jobs which are disabled are not running.
+      parameters:
+        - name: 'clientID'
+          in: path
+          required: true
+          type: string
+          description: |
+            The unique client ID
+      responses:
+        200:
+          description: Data retrieved successfully
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/JobStats'
+        401:
+          $ref: '#/responses/Unauthorized'
+        404:
+          description: The client does not exist
+        500:
+          description: An unexpected error occurred
+
+  /clients/{clientID}/jobStatus/{jobName}:
+    get:
+      tags: 
+        - Job Management
+      summary: Get JobStats for a specific job name
+      description: |
+        Will retrieve the JobStats for a specific Job name on a Client
+      parameters:
+        - name: 'clientID'
+          in: path
+          required: true
+          type: string
+          description: |
+            The unique client ID
+        - name: 'jobName'
+          in: path
+          required: true
+          type: string
+          description: |
+            The unique Job name on the Client
+      responses:
+        200:
+          description: Data retrieved successfully
+          schema:
+            $ref: '#/definitions/JobStats'
+        401:
+          $ref: '#/responses/Unauthorized'
+        404:
+          description: The client does not exist
+        500:
+          description: An unexpected error occurred
+
+
+  /clients/{clientID}/stopJob/{jobName}:
+    put:
+      tags: 
+        - Job Management
+      summary: Stop a job on the Client
+      description: |
+        Stops a job by name on the Client. In Unices this means a SIGTERM is sent to the job. However if the job is forced - a the process will be a sent a SIGKILL.
+      parameters:
+        - name: 'clientID'
+          in: path
+          required: true
+          type: string
+          description: |
+            The unique client ID
+        - name: 'jobName'
+          in: path
+          required: true
+          type: string
+          description: |
+            The unique Job name on the Client
+        - name: 'body'
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              force:
+                type: boolean
+                description: If true, Maestro will force the job to stop, and send a SIGKILL to the process after a timeout
+              forceTimeout:
+                type: integer
+                default: 5000
+                description: Timeout in milliseconds to force a job stop. A timeout of 0 will cause the stop to just do a SIGKILL on the process immediately
+      responses:
+        200:
+          description: Job stopped successfully
+        401:
+          $ref: '#/responses/Unauthorized'
+        404:
+          description: The client does not exist
+        500:
+          description: An unexpected error occurred
+
+  /clients/{clientID}/startJob/{jobName}:
+    put:
+      tags: 
+        - Job Management
+      summary: Start / restart a job on the Client for a previously defined Job name
+      description: |
+        Normally Maestro will start a job as soon as it is added to the client. In the case of an explicitly stoped Job, or a Job which was set as noAutostart, the Job can be started.
+        If the Job is already running, the call will do nothing, unless the restart option is set to true.
+      parameters:
+        - name: 'clientID'
+          in: path
+          required: true
+          type: string
+          description: |
+            The unique client ID
+        - name: 'jobName'
+          in: path
+          required: true
+          type: string
+          description: |
+            The unique Job name on the Client
+        - name: 'body'
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              forceRestart:
+                type: boolean
+                default: false
+                description: If the job is already running, then force it to stop, and then restart it.
+              forceTimeout:
+                type: integer
+                default: 5000
+                description: If we asked for a restart, this timeout provides the amount of time we wait, until doing a SIGKILL on the process
+      responses:
+        200:
+          description: Job stopped successfully
+        401:
+          $ref: '#/responses/Unauthorized'
+        404:
+          description: The client does not exist
+        500:
+          description: An unexpected error occurred
+
+  /client/{clientID}/status:
+    get:
+      tags: 
+        - Client Management
+      summary: Get the status and jobs of a Client
+      description: Get the status of a specific client
+      parameters:
+        - name: 'clientID'
+          in: path
+          required: true
+          type: string
+          description: |
+            The unique client ID
+      responses:
+        200:
+          description: Ok, the client status is retrieved
+          schema:
+            type: array
+            description: An array of ClientStatus objects which describe the clients provided 
+            items:
+              $ref: '#/definitions/ClientStatus'
+        401:
+          $ref: '#/responses/Unauthorized'
+        404:
+          description: The client does not exist.
+        500:
+          description: An unexpected error occurred
+
+  /clients/status:
+    post:
+      tags: 
+        - Client Management
+      summary: Get the status and jobs of one or more Clients
+      description: Get the status of a list of Clients
+      parameters:
+        - name: 'body'
+          in: body
+          required: true
+          description: An array of clientIDs
+          schema:
+            type: array
+            items:
+              type: string
+            example: [ "WWRL0000010", "WWRL0000011" ]
+      responses:
+        200:
+          description: Ok, the client status is retrieved
+          schema:
+            type: array
+            description: An array of ClientStatus objects which describe the clients provided 
+            items:
+              $ref: '#/definitions/ClientStatus'
+        401:
+          $ref: '#/responses/Unauthorized'
+        404:
+          description: The client does not exist.
+        500:
+          description: An unexpected error occurred
+
+  /clients/reboot:
+    post:
+      tags: 
+        - Client Management
+      summary: Reboot one or more Clients
+      description: |
+        Maestro will attempt to reboot the client by initiaing a reboot through a system call. This call iniates a reboot, no garantee or reboot can be determined until later.
+      parameters:
+        - name: 'body'
+          in: body
+          required: true
+          description: An array of clientIDs
+          schema:
+            type: array
+            items:
+              type: string
+            example: [ "WWRL0000010", "WWRL0000011" ]
+      responses:
+        200:
+          description: |
+            The server is attempting to contact all clients and reboot them. Status can be checked via the TaskID,
+            which will provide the status of each client's reboot progress.
+          schema:
+            type: string
+            description: A TaskID string
+        401:
+          $ref: '#/responses/Unauthorized'
+        404:
+          description: The client does not exist.
+        500:
+          description: An unexpected error occurred
+  /clients/shutdown:
+    post:
+      tags: 
+        - Client Management
+      summary: Shutdown one or more Clients
+      description: |
+        Maestro will attempt to shutdown the client by initiaing a reboot through a system call. Unless an out of band management system is in place, the client may become unmanagable.
+        A TaskID will provide status for each Client's shutdown status.
+      parameters:
+        - name: 'body'
+          in: body
+          required: true
+          description: An array of clientIDs
+          schema:
+            type: array
+            items:
+              type: string
+            example: [ "WWRL0000010", "WWRL0000011" ]
+      responses:
+        200:
+          description: The server is attempting to contact all clients and reboot them. Status can be checked via the TaskID
+          schema:
+            type: string
+            description: A TaskID string
+        401:
+          $ref: '#/responses/Unauthorized'
+        404:
+          description: The client does not exist.
+        500:
+          description: An unexpected error occurred
+
+  /images:
+    get:
+      tags: 
+        - Job Image Management
+      summary: List all available images on the Symphonyd server for this account
+      description: NOTE - needs paging
+      responses:
+        200:
+          description: Data retrieved successfully
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/JobImage'
+        401:
+          $ref: '#/responses/Unauthorized'
+        404:
+          description: The client does not exist
+        500:
+          description: An unexpected error occurred
+
+  /images/{jobName}/{version}:
+    patch:
+      tags:
+        - Job Image Management
+      summary: Changes an existing jobImage
+      description: |
+        This request accepts an rfc6902 formatted JSON patch that adds or removes a JobImage by job name
+      parameters:
+        - name: 'jobName'
+          in: path
+          required: true
+          type: string
+          description: |
+            The jobName of the Job which this image belongs to. refers to the name of the job. A Job must be
+            created before an image can be uploaded
+        - name: 'version'
+          in: path
+          required: true
+          type: string
+          description: |
+            The version string used to identify the specific image we are modifying
+        - name: 'body'
+          in: body
+          required: true
+          schema:
+            type: array
+            items:
+              type: object
+              properties:
+                op:
+                  type: string
+                  format: add|remove|replace
+                path:
+                  type: string
+                  format: /
+                value:
+                  type: string
+      responses:
+        200:
+          description: Job image was modified successfully
+        401:
+          $ref: '#/responses/Unauthorized'
+        404:
+          description: The JobImage at stated version does not exist
+        500:
+          description: An unexpected error occurred
+    put:
+      tags:
+        - Job Image Management
+      summary: Adds a new image for an existing defined job
+      description: |
+        Allows creation of a new image version, with an option to duplicate an existing image on creation
+      parameters:
+        - name: 'jobName'
+          in: path
+          required: true
+          type: string
+          description: |
+            The jobName of the Job which this image belongs to. refers to the name of the job. A Job must be
+            created before an image can be uploaded
+        - name: 'version'
+          in: path
+          required: true
+          type: string
+          description: |
+            The version string used to identify the specific image we are creating
+        - name: 'body'
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              copyFromVersion:
+                type: string
+                required: false
+                description: |
+                  If provided, before populating any other data in the payload, this will first fill on all JobImage document fields
+                  with the values from this previous version.
+              image:
+                $ref: '#/definitions/JobImage'
+      responses:
+        200:
+          description: Job image was created successfully
+        401:
+          $ref: '#/responses/Unauthorized'
+        404:
+          description: The JobImage at stated version already exists
+        500:
+          description: An unexpected error occurred
+    get:
+      tags:
+        - Job Image Management
+      summary: Retrieve an existing JobImage object
+      description: |
+        Retrieve an existing JobImage object at a specific version
+      parameters:
+        - name: 'jobName'
+          in: path
+          required: true
+          type: string
+          description: |
+            The jobName of the Job which this image belongs to. refers to the name of the job. A Job must be
+            created before an image can be uploaded
+        - name: 'version'
+          in: path
+          required: true
+          type: string
+          description: |
+            The version string used to identify the specific image we are creating
+      responses:
+        200:
+          description: The JobImage object
+          schema:
+            $ref: '#/definitions/JobImage'          
+        401:
+          $ref: '#/responses/Unauthorized'
+        404:
+          description: No image exists with given name and version
+        500:
+          description: An unexpected error occurred
+    delete:
+      tags:
+        - Job Image Management
+      summary: Delete an existing JobImage object
+      description: |
+        Removes the image object form the server. This does not remove the image from Clients. However, Client will 
+        no longer be able to install this image
+      parameters:
+        - name: 'jobName'
+          in: path
+          required: true
+          type: string
+          description: |
+            The jobName of the Job which this image belongs to. refers to the name of the job. A Job must be
+            created before an image can be uploaded
+        - name: 'version'
+          in: path
+          required: true
+          type: string
+          description: |
+            The version string used to identify the specific image we are removing
+      responses:
+        200:
+          description: The JobImage object was removed
+        401:
+          $ref: '#/responses/Unauthorized'
+        404:
+          description: No image exists with given name and version
+        500:
+          description: An unexpected error occurred
+      
+
+
+  /images/{jobName}:
+    get:
+      tags: 
+        - Job Image Management
+      summary: Gets a list of all images avaialble for a particular JobName
+      description: |
+        An array of JobImage objects is provided. Images can the be later reference with their version field.      
+      responses:
+        200:
+          description: Data retrieved successfully
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/JobImage'
+        401:
+          $ref: '#/responses/Unauthorized'
+        404:
+          description: The client does not exist
+        500:
+          description: An unexpected error occurred
+
+
+  /prepareImage/{jobName}:
+    post:
+      tags: 
+        - Job Image Management
+      summary: Move a new image to a Client(s), and optionally install / replace / restart Job.
+      description: |
+        Install a new or newer version of a Job image to a Client or group of Clients. When the image is ready on the Client, a 'imageReady' event will be sent. If the 'install' option is set to true
+        then a 'imageInstalled' event will later be sent, along with a job events around the restart of the job if it was already running.
+      parameters:
+        - name: 'body'
+          in: body
+          required: true
+          schema:
+            type: object
+            example: { clients: [ "WWRL0000B90", "WWRL0000B91" ], version: "1.0.1" }
+            properties:
+              clients:
+                description: An array of clientIDs
+                type: array
+                items:
+                  type: string
+              version:
+                type: string
+                required: false
+                description: Use a specific version. If not provided, it will use the latest image know by Symphonyd.
+              install:
+                type: boolean
+                required: false
+                default: false
+                description: If true, the Maestro daemon will automatically install the new image - which will stop a running job, replace its image, and attempt to restart the job, if the job is currently running
+
+  /installImage/{jobName}:
+    post:
+      tags: 
+        - Job Image Management
+      summary: Installs a new image, which is on deck (already moved and ready) to one or more Clients
+      description: |
+        Images 
+      parameters:
+        - name: 'body'
+          in: body
+          required: true
+          schema:
+            type: object
+            example: { clients: [ "WWRL0000B90", "WWRL0000B91" ], version: "1.0.1" }
+            properties:
+              clients:
+                description: An array of clientIDs
+                type: array
+                items:
+                  type: string
+              version:
+                type: string
+                required: true
+                description: A version must be stated. This can only be the version which is "on deck" on the Client. A version is required to prevent accidental mismatches of images across Clients.
+ 
+
+
+############################## defintions
+definitions:
+  LogEvent:
+    type: object
+    description: A single log entry originating from a particular Symphonyd client
+    properties: 
+      level:
+        type: string
+        description: A string which describes the 'level' of the log. Typically names like 'warning' 'error' or 'debug'
+      tag:
+        type: string
+        description: A string which helps identify a log entry
+      origin:
+        type: string
+        description: A string which identifies a process, job or subsystem on the client which generated the log entry
+      entry:
+        type: string
+        description: The log entry data body, as a UTF8 string
+  # Some definitions here:
+  # https://github.com/WigWagCo/maestro/blob/master/src/processes/processEvents.go
+  ProcessEvent:
+    type: object
+    description: A single event about processes control from a particular Symphonyd client. Additional fields beyond those documented may be returned.
+    properties:
+      name:
+        type: string
+        description: |
+          The name of the event. Some of these events are:
+          "running" - the job / process is now running
+          "starting" - the job / process is in a starting state
+          "stopping" - the job / process is in a stopping state
+          "stopped" - the job / process has stopped successfully - may return an exit value          
+          "coreDump" - the job / process core coreDumped
+          "crashed" - the job / process died unexpectedly, by way of some critical error which does not produce a core dump
+          "died" - the job / process died unexpectedly - may return an exit value
+          "killedByTimeout" - the job / process was killed by Maestro due to a timeout
+      when:
+        type: integer
+        description: Number of milliseconds from the Unix Epoch that the event occurred
+      pid:
+        type: integer
+        description: A number representing the process ID on the OS of the Client
+      job:
+        type: string
+        description: If the event relates to a Job - typical - then the Job name is here
+      exitVal:
+        type: integer
+        description: If applicable, the exit value of the process is reported here
+      willAttemptRestart:
+        type: boolean
+        description: If true, then it means the Client's Maestro daemon will attempt to restart the job / process      
+
+  ClientImageEvent:
+    type: object
+    description: Events related to image management for a particular Symphonyd Client. Additional fields beyond those documented may be returned.
+    properties:
+      name:
+        type: string
+        description: |
+            The name of the event. Some of these events are:
+            "imageOnDeck" - the image has been moved to the Client, and is ready for install
+            "installed" - the image is successfully installed on the client
+            "failedInstall" - the image failed to install
+            "failedMove" - the image failed to move
+            "removed" - the image was successfully removed
+      when:
+        type: integer
+        description: Number of milliseconds from the Unix Epoch that the event occurred
+      job:
+        type: string
+        description: If the event relates to a Job - typical - then the Job name is here
+      
+
+
+  ClientEvent:
+    type: object
+    description: A generic container for an event from a Client
+    properties:
+      timestamp:
+        type: integer
+        description: The time at which the event was generated encoded as milliseconds elapsed since 1 January 1970 00:00:00 UTC
+      clientID:
+        type: string
+        description: The ID of the Client which generated the event
+      data:
+        type: string
+        description: This is any event metadata generated with the event by Maestro
+      subscriptions:
+        type: array
+        items:
+          type: string
+        description: A list of subscription IDs that are subscribed to this event
+      uuid:
+        type: string
+        description: A UUID that can be used to uniquely identify this event beyond its timestamp.
+  ClientStatus:
+    type: object
+    description: An object which provides the general state of a Client from the viewpoint of Symphonyd
+    properties:
+      id:
+        type: string
+        description: A unique ID identifying a client which is connected to Symphonyd
+      lastContact:
+        type: integer
+        description: The last time the server had contact form the client, in milliseconds from the Unix Epoch
+      connected:
+        type: boolean
+        description: If true then the client is currently connected to Symphonyd
+      jobs:
+        type: array
+        description: An array of the jobs running on the ClientStatsConfig
+        items:
+          type: object
+          properties:
+            jobName:
+              type: string
+              description: the Job name
+            status:
+              type: string
+              description: A string describing the jobStatus, such as "running", "starting", "stopped", "neverRan"
+            version:
+              type: string
+              description: The version string of Job's current image.
+            imagePath:
+              type: string
+              description: Where Maestro has the Job's image on the gateway
+  Client:
+    type: object
+    description: A Symphonyd client is a remote system under management by this server
+    properties:
+      id:
+        type: string
+        description: A unique ID identifying a client which is connected to Symphonyd
+      lastContact:
+        type: integer
+        description: The last time the server had contact form the client, in milliseconds from the Unix Epoch
+      description:
+        type: string
+        description: A descriptive string describing this client
+      groups:
+        type: array
+        items:
+          type: string
+        description: A list of unique IDs of groups the Client belongs to
+      connected:
+        type: boolean
+        description: If true then the client is currently connected to Symphonyd
+  ###### See definitions in Maestro for the genesis of these objects
+  ## See: Maestro/src/processes/processTemplates.go
+  Job:
+    type: object
+    description: a single process or subsystem which can be started/stopped/managed on a client
+    properties:
+      name:
+        type: string
+        description: A short name describing the job. Must be globally unique
+      containerTemplate:
+        type: string
+        description: References a containerTemplate which this job should inherit from
+      messageForProcess:
+        type: string
+        description: A string which will be handed to the job via stdin on start
+      execCmd:
+        type: string
+        description: The command which on Unices will be handed to exec() and similar system calls. However, if this job has a containerTemplate, and it has an execCmd, then this becomes the first argument
+      version:
+        type: string
+        description: A version string describing the version of a Job
+      args:
+        type: array
+        description: Arguments which should be passed at exection
+        items:
+          type: string
+      env:
+        type: array
+        description: Environment variable pairs, in the for VAR=xyz, for instance USER=joesmith or PATH=/bin
+        items:
+          type: string
+      pgid: 
+        type: integer
+        minimum: 0
+        description: use the given PGID, a missing or a value of zero indicate create a new PGID
+      inheritEnv:
+        type: boolean
+        description: if the new process should inherit the environment of the Maestro daemon
+      daemonize:
+        type: boolean
+        description: if the new process should be started as a daemon - this includes things like creating a new session ID in Unices
+      restart:
+        type: boolean
+        description: should Maestro automatically restart the job if it fails
+      restartPause:
+        type: integer
+        description: If non-zero, then Maestro will pause when attempting to restart the job, for given milliseconds
+      restartLimit:
+        type: integer
+        description: The max number of times Maestro will restart the job if it fails
+      dependsOn:
+        type: array
+        description: An array of job names, which this job is dependent on seeing a 'running' state from before starting
+        items:
+          type: string
+      restartOnDependencyFail:
+        type: boolean
+        description: Should Maestro restart the job if the job's dependencies fails
+      noAutostart:
+        type: boolean
+        description: If true, the job will not automatically be started when when Maestro is started, which is normally at boot
+      waitForOk:
+        type: boolean
+        description: If true, Maestro will wait for a magic start string from the job's stdout before marking the job from 'starting' to 'running'. Will override any ContainerTemplate setting.
+      timeoutForOk:
+        type: integer
+        description: If set and non-zero, Maestro will wait N milliseconds before considering the job to have failed at start, and killing the process. Will override any ContainerTemplate setting.
+  ## See: Maestro/src/processes
+  # analagous to StatEvents in: https://github.com/WigWagCo/maestro/blob/master/src/processes/processEvents.go
+  JobStats:
+    type: object
+    description: Current statistics for a job
+    properties:
+      name:
+        type: string
+        description: A short name describing the Job. Must be globally unique
+      uptime:
+        type: integer
+        description: Number of milliseconds the job has been running since last start
+      failuresSinceBoot:
+        type: integer
+        description: Number of times the job has failed (did not start or unexpected crash/shutdown) since last boot of Client
+      restartLimitReached:
+        type: boolean
+        description: If returned and true, the job is not running and has failed to restart because it's restart limit was reached.
+      memory:
+        type: integer
+        description: Memory usage in bytes of the job
+      memoryPercentage:
+        type: number 
+        description: A value representing the percentage memory use on the Client (STUB)
+      cpuPercentage:
+        type: number
+        description: A value representing the percentage use of the CPU of the Client (STUB)
+      status:
+        type: string
+        format: running|starting|stopped|stopping|neverStarted|coreDumped|coreDumpedRestarting|killed|died|diedRestarting|failedRestarting|timedOutOnStart
+        description: A string, showing status of the job
+  JobImage:
+    type: object
+    description: |
+      An object describing a module or other image which can be installed on the Client. Currently Maestro will support a tarball image, with a special variation for a
+      deviceJS install. Docker images will be supported in the future.
+    properties:
+      name:
+        type: string
+        description: A short name describing the Job. Must be globally unique
+      version:
+        type: string
+        description: A version string describing the version of a Job
+      downloadUrl:
+        type: string
+        description: Where the image may be retrieved from. If the URL uses a metavariable of {{SYMPHONY}} then it represents the base URL of this server.
+      size: 
+        type: integer
+        description: Size in bytes of the image
+      checksum:
+        type: object
+        description: A checksum which validate the image
+        properties:
+          method:
+            type: string
+            format: sha256sum|md5sum
+          value:
+            type: string
+            description: the checksum string
+      installerJob:
+        type: string
+        format: docker|tarball|deviceJStarball
+
+  ## See: Maestro/src/processes/processTemplates.go
+  ContainerTemplate:
+    type: object
+    description: A template which is used to help define a Job. Maestro will inherits / merges the properties of a ContainerTemplate with it's own properties
+    properties:
+      name:
+        type: string
+        description: A short name describing the template. Must be globally unique
+      inheritEnv:
+        type: boolean
+        description: if the new process should inherit the environment of the Maestro daemon
+      execCmd:
+        type: string
+        description: The command which on Unices will be handed to exec() and similar system calls. If the job has an execCmd parameter, then the job's execCmd will become the first argument
+      preArgs:
+        type: array
+        description: Arguments which should be passed at exection, and inserted before the job's own arguments
+        items:
+          type: string
+      postArgs:
+        type: array
+        description: Arguments which should be passed at exection, and inserted after the job's own arguments
+        items:
+          type: string
+      addEnv:
+        type: array
+        description: Environment variable pairs, in the for VAR=xyz, for instance USER=joesmith or PATH=/bin. If the job has environment vars, these will be merged with those
+        items:
+          type: string
+      waitForOk:
+        type: boolean
+        description: If true, Maestro will wait for a magic start string from the job's stdout before marking the job from 'starting' to 'running'
+      timeoutForOk:
+        type: integer
+        description: If set and non-zero, Maestro will wait N milliseconds before considering the job to have failed at start, and killing the process
+      limits:
+        type: object
+        description: An optional object describing desired limitations for the job, using supported Maestro 'cgroup' parameters and kernel caps
+        properties:
+          memLimit:
+            type: integer
+            minimum: 0
+            maximum: 100
+            description: the percentage of memory the job is allowed to use on the Client
+          memLimitAbsolute:
+            type: integer
+            minimum: 0
+            description: the amount of bytes of memory the job is allowed to use on the system (takes precedence over memLimit)
+          cpuLimit:
+            type: integer
+            minimum: 1
+            maximum: 100
+            description: The max percentage of CPU the job can occupy on the Client. This is a best effort based on the capabilities of the client, it's kernel setup, and processes outside of Maestro control
+          cpuPinning:
+            type: array
+            description: States which CPU cores (considering all CPU packages) that the job may occupy. STUB - not supported in Maestro yet
+            items:
+              type: integer
+              minimum: 0
+              maximum: 255
+          cpuExclusivePinning:
+            type: array
+            description: Attempts to provide a CPU core *dedicated* for this job. STUB - not supported in Maestro yet
+            items:
+              type: integer
+              minimum: 0
+              maximum: 255
+          whitelistDevices:
+            type: array
+            items:
+              type: object
+              description: An object analgous to the Linux cgroup permissions for setting device access
+              properties:
+                majorNum:
+                  type: integer
+                  minimum: 0
+                  maximum: 4095
+                minorNum:
+                  type: integer
+                  minimum: 0
+                  maximum: 1048575
+                read:
+                  type: boolean
+                write: 
+                  type: boolean
+                mknod:
+                  type: boolean
+          storageQuota:
+            type: integer
+            description: Limit percentage of disk storage the job is allowed to occupy. This will include the storage of the code of the job itself. Maestro requires a quota capable FS on the Client. STUB only - not supported yet in Maestro
+            minimum: 1
+            maximum: 100
+          storageQuotaAbsolute:
+            type: integer
+            minimum: 0
+            description: Limit by absolute bytes the amount of storage a job can occupy. This will include the storage of the code of the job itself. Maestro requires a quota capable FS on the Client. STUB only - not supported yet in Maestro
+          networkDeviceLimits:
+            type: array
+            items:
+              type: object
+              description: Limit the job's bandwidth on a particular interface by bandwidth. STUB - not supported yet in Maestro
+              properties:
+                interface:
+                  type: string
+                  description: A string identifying the interface. If "*" is provide, the limitation will be places on all ethernet and WiFi interfaces
+                limit:
+                  type: integer
+                  description: The limit in killobytes per seconds
+                  minimum: 0
+  ClientStatsConfig:
+    type: object
+    properties:
+      interval:
+        type: integer
+        minimum: 100
+        description: The master interval in milliseconds the Maestro daemon should check for vital stats
+      checkMemPace:
+        type: integer
+        minimum: 0
+        description: The pace at which the memory stats should be checked. 0 indicates never. 1 indicates at every interval. 2 indicates at every other, etc.
+      checkDiskPace:
+        type: integer
+        minimum: 0
+        description: The pace at which the storage stats should be checked. 0 indicates never. 1 indicates at every interval. 2 indicates at every other, etc.
+      checkCPUPace:
+        type: integer
+        minimum: 0
+        description: The pace at which the CPU stats should be checked. 0 indicates never. 1 indicates at every interval. 2 indicates at every other, etc.
+      checkNetworkPace:
+        type: integer
+        minimum: 0
+        description: The pace at which the CPU stats should be checked. 0 indicates never. 1 indicates at every interval. 2 indicates at every other, etc.
+
+  Endpoint:
+    type: object
+    properties:
+      _links:
+        type: object
+        properties:
+          self:
+            type: object
+            properties:
+              href:
+                type: string
+          account:  
+            type: object
+            properties:
+              href:
+                type: string
+      uri:
+        type: string
+        format: uri
+        description: A remote endpoint URI that will accept and process forwarded events. This may be null if not yet set or if the event stream has been deleted
+      secret:
+        type: string
+        description: The secret token used to sign events forwarded to the remote URI. This string should be sufficiently long and random and only be known by the WigWag cloud and the remote endpoint. This secret will be used to sign and verify payloads sent to the remote endpoint.
+  OauthAccessTokenRequest:
+    type: object
+    properties:
+      grant_type:
+        description: Oauth 2.0 grant type parameter. The only supported grant types currently are 'client_credentials' and 'password'
+        type: string
+        format: client_credentials
+      client_id:
+        description: WigWag issued Oauth 2.0 client id
+        type: string
+      client_secret:
+        description: WigWag issued Oauth 2.0 client secret
+        type: string
+      username:
+        description: Username if using the 'password' grant type
+        type: string
+      password:
+        description: Password if using the 'password' grant type
+        type: string
+      account_id:
+        description: WigWag account to associate with this access token if using the 'password' grant type
+        type: string
+  OauthAccessTokenResponse:
+    type: object
+    properties:
+      access_token:
+        description: The access token
+        type: string
+      account_id:
+        description: The account ID this token is associated with. Will be omitted if the token is not tied to an account
+        type: string
+      token_type:
+        description: Type of access token. In this version of the API this is always 'bearer'
+        type: string
+      expires_in:
+        description: The number of seconds until this access token expires
+        type: integer

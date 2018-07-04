@@ -1,0 +1,121 @@
+---
+swagger: '2.0'
+info:
+  version: 0.0.1
+  title: EMC (enterprise-monitoring-console)
+  description: UI backend server for site monitoring
+schemes:
+- http
+consumes:
+- application/json
+produces:
+- application/json
+basePath: "/enterprise-monitoring-console"
+securityDefinitions:
+  Bearer:
+    type: apiKey
+    name: Authorization
+    in: header
+    description: A bearer token must be included in the Authorization header of all
+      requests of the format 'Bearer {access_token}'. In other words, in every API
+      request you must concatentate 'Bearer' and a valid access token returned by
+      the /oauth/access_token endpoint with a space in between and put this into the
+      Authorization header of your request. Refer WigWag Enterprise API to get bearer
+      token.
+  CloudURL:
+    type: apiKey
+    name: cloudurl
+    in: header
+security:
+- Bearer: []
+- CloudURL: []
+tags:
+  - name: Devices
+    description: Endpoints to read/write device specifics within a site
+  - name: Sites
+    description: Endpoints to access sites specifics
+paths:
+  "/relayLocation":
+    get:
+      description: 'Get location of Each relay in the account'
+      tags:
+        - Relay
+      responses:
+        '200':
+          description: Success
+        '500':
+          description: Internal server error
+  "/siteData":
+    get:
+      description: 'Get site diagnostic data'
+      tags:
+        - Sites
+      responses:
+        '200':
+          description: Success
+        '500':
+          description: An unexpected error occurred
+definitions:
+  DeviceName:
+    type: object
+    properties:
+      name:
+        type: string
+        description: The new friendly name of the device
+  Diagnostics:
+    type: object
+    properties:
+      Peripherals:
+        type: object
+        properties:
+          "Z-Wave home ID":
+            type: string
+          "Enocean serial port":
+            type: string
+          "Enocean":
+            type: string
+          "Bacnet serial port":
+            type: string
+          "Bacnet":
+            type: string
+          "Modbus serial port":
+            type: string
+          "Modbus":
+            type: string
+          "6LoWPAN PAN ID":
+            type: string
+          "6LoWPAN channel":
+            type: string
+          "6LoWPAN":
+            type: string
+          "Z-Wave":
+            type: string
+          "ZigBee PAN ID":
+            type: string
+          "ZigBee channel":
+            type: string
+          "ZigBee":
+            type: string
+      Relay:
+        type: object
+        properties:
+          "System Uptime":
+            type: string
+          "Software Uptime":
+            type: string
+          "Ethernet MAC":
+            type: string
+          "Relay LED config":
+            type: string
+          "Radio config":
+            type: string
+          "Relay hardware version":
+            type: string
+          "Relay software version":
+            type: string
+          "Pairing Code":
+            type: string
+          "Relay IP Address":
+            type: string
+          "Relay ID":
+            type: string

@@ -1,0 +1,8 @@
+{
+    "MONGO_URI": "mongodb://localhost/ems_development_db",
+    "devPort": "4444",
+    "prodPort": "8080",
+    "modelDefinitions": "/api/models",
+    "logRequests": false,
+    "logLevel": 2
+}
