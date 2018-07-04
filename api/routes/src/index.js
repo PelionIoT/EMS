@@ -10,6 +10,6 @@ const EMS = require('./controllers/ems_data');
 //Developer debugging routes
 router.use(require('./internal.js'));
 
-router.get('/ems_data',Middleware.getEnterpriseTools, EMS.getEMSData);
+router.get('/accounts/:accountID/sites/:siteID/ems_data',Middleware.getEnterpriseTools, EMS.getEMSData);
 
 module.exports = router;
