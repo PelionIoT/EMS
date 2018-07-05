@@ -2,7 +2,8 @@
 var rp = require('request-promise');
 
 let getEMS_RawData = (req,res) => {
-    
+    return new Promise(function(resolve,reject){
+
     var accountID = req.params.accountID;
     var siteID = req.params.siteID;
     var relayID = req.query.relayID;
@@ -11,14 +12,6 @@ let getEMS_RawData = (req,res) => {
     var afterTime = req.query.afterTime;
 
     if(relayID !== undefined && deviceID !== undefined){
-
-        //getDeviceLogs(req,res,accountID,siteID,relayID,deviceID);
-
-        // var resultData = {
-        //     "data": {
-    
-        //     }
-        // };
 
         var deviceLogs = {
             state:{
@@ -43,33 +36,24 @@ let getEMS_RawData = (req,res) => {
             
             var result = Object.keys(resp.state[deviceID]);
 
-            getDeviceLogs(req,res,accountID,siteID,relayID,deviceID,result[0]).then(function(response){
-            
-                console.log(response);
-                //res.status(200).send(deviceLogs);
-                response._embedded.logs.forEach((logsResp) => {
-                    //console.log(logsResp)
-                    deviceLogs.state.power.value.push(logsResp.metadata)
-                    deviceLogs.state.power.timestamp.push(logsResp.timestamp)
+            getDeviceLogs(req,accountID,siteID,relayID,deviceID,result[0]).then(function(response){
+                response._embedded.logs.forEach((deviceEvent) => {
+                    deviceLogs.state.power.value.push(deviceEvent.metadata)
+                    deviceLogs.state.power.timestamp.push(deviceEvent.timestamp)
                 })
-
-               res.status(200).send(deviceLogs); 
+               resolve(deviceLogs); 
             });
-            
-            //res.status(200).send(result);
 
         },function(err) {
-            res.status(500).send(err)
+            reject(err)
         })
-    
-    
     } else {
-        res.status(500).send("Failure");
+        reject("Failure");
     }
-    
+});
 };
 
-let getDeviceLogs = (req,res,accountID,siteID,relayID,deviceID,stateID) => {
+let getDeviceLogs = (req,accountID,siteID,relayID,deviceID,stateID) => {
     return new Promise(function(resolve,reject){
     var cloudurl = req.headers.cloudurl;
     var authToken = req.headers.authorization;
