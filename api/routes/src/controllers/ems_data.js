@@ -14,11 +14,29 @@ let getEMSData = (req,res) => {
 
         //getDeviceLogs(req,res,accountID,siteID,relayID,deviceID);
 
-        var resultData = {
-            "data": {
+        // var resultData = {
+        //     "data": {
     
+        //     }
+        // };
+
+        var deviceLogs = {
+            state:{
+                power: {
+                    value: [],
+                    timestamp: []
+                }
+                // ,
+                // brightness: {
+                //     value: [],
+                //     timestamp: []
+                // },
+                // hsl: {
+                //     value: [],
+                //     timestamp: []
+                // }
             }
-        };
+        }
 
         // Get device states
         req.dcs.getResourceState(siteID, `id=\"${deviceID}\"`, null).then(function(resp) {
@@ -28,8 +46,14 @@ let getEMSData = (req,res) => {
             getDeviceLogs(req,res,accountID,siteID,relayID,deviceID,result[0]).then(function(response){
             
                 console.log(response);
-                res.status(200).send(response);
+                //res.status(200).send(deviceLogs);
+                response._embedded.logs.forEach((logsResp) => {
+                    //console.log(logsResp)
+                    deviceLogs.state.power.value.push(logsResp.metadata)
+                    deviceLogs.state.power.timestamp.push(logsResp.timestamp)
+                })
 
+               res.status(200).send(deviceLogs); 
             });
             
             //res.status(200).send(result);
