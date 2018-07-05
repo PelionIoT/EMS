@@ -29,12 +29,12 @@ app.use(device.capture());
 
 
 // Initate mongoose instance
-logger.info('Connecting to mongo server at ' + mongoServerURI);
-mongoose.Promise = global.Promise;
-mongoose.connect(mongoServerURI);
-mongoose.connection.on('error', function(error) {
-    logger.error('MongoDB connection error' + error);
-});
+// logger.info('Connecting to mongo server at ' + mongoServerURI);
+// mongoose.Promise = global.Promise;
+// mongoose.connect(mongoServerURI);
+// mongoose.connection.on('error', function(error) {
+//     logger.error('MongoDB connection error' + error);
+// });
 
 const server = http.createServer(app);
 
