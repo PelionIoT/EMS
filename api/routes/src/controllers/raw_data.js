@@ -1,7 +1,7 @@
 'use strict';
 var rp = require('request-promise');
 
-let getEMSData = (req,res) => {
+let getEMS_RawData = (req,res) => {
     
     var accountID = req.params.accountID;
     var siteID = req.params.siteID;
@@ -99,6 +99,6 @@ let getDeviceLogs = (req,res,accountID,siteID,relayID,deviceID,stateID) => {
 };
 
 module.exports = {
-    getEMSData,
+    getEMS_RawData,
     getDeviceLogs
 }
