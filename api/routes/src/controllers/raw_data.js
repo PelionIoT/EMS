@@ -32,34 +32,39 @@ let getEMS_RawData = (req,res) => {
         }
 
         // Get device states
-        req.dcs.getResourceState(siteID, `id=\"${deviceID}\"`, null).then(function(resp) {
+        //req.dcs.getResourceState(siteID, `id=\"${deviceID}\"`, null).then(function(resp) {
             
-            var result = Object.keys(resp.state[deviceID]);
+            //var result = Object.keys(resp.state[deviceID]);
 
-            getDeviceLogs(req,accountID,siteID,relayID,deviceID,result[0]).then(function(response){
+            getDeviceLogs(req,accountID,siteID,relayID,deviceID).then(function(response){
                 response._embedded.logs.forEach((deviceEvent) => {
-                    deviceLogs.state.power.value.push(deviceEvent.metadata)
-                    deviceLogs.state.power.timestamp.push(deviceEvent.timestamp)
+                    if(deviceEvent.event.indexOf('power') > -1){
+                        deviceLogs.state.power.value.push(deviceEvent.metadata)
+                        deviceLogs.state.power.timestamp.push(deviceEvent.timestamp)
+                    }
                 })
-               resolve(deviceLogs); 
+                //res.status(200).send(deviceLogs)
+               resolve(deviceLogs);
+            },function(err) {
+               reject(err)
             });
 
-        },function(err) {
-            reject(err)
-        })
+        // },function(err) {
+        //     reject(err)
+        // })
     } else {
         reject("Failure");
     }
 });
 };
 
-let getDeviceLogs = (req,accountID,siteID,relayID,deviceID,stateID) => {
+let getDeviceLogs = (req,accountID,siteID,relayID,deviceID) => {
     return new Promise(function(resolve,reject){
     var cloudurl = req.headers.cloudurl;
     var authToken = req.headers.authorization;
 
     var url = cloudurl + "/api/device_logs?account=" + accountID + "&site=" + siteID 
-              + "&relay=" + relayID + "&device=" + deviceID + "&event=state-" + stateID;
+              + "&relay=" + relayID + "&device=" + deviceID + "&sort=desc";
 
     var options = {
         uri: url,
