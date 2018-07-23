@@ -3,49 +3,75 @@ var EMS_Raw = require('./raw_data')
 let getDeviceGraphs = (req, res) => {
     
     var deviceID = req.query.deviceID;
+
     // Precision = Days / Months / Year
-    var precision = req.query.precision;
+    var precisionType = req.query.precision;
+
     // Precision Value
     // Days = Number of Days (ex: 2 / 7 / 25)
     // Month = Any month (ex: July)
     // Year = Any Year (ex: 2018)
     var precisionValue = req.query.pvalue
 
-    if(precision != undefined && precision == "year"){
-        EMS_Raw.getEMS_RawData(req,"asc").then(function(response){
+    if(precisionType != undefined && precisionType == "days")
+    {
+        res.status(200).send("Under construction");
+    }
+    else if(precisionType != undefined && precisionType == "month")
+    {
+        res.status(200).send("Under construction");
+    }
+    else if(precisionType != undefined && precisionType == "year")
+    {
+        EMS_Raw.getEMS_RawData(req,"asc").then(function(raw_data){
             // Raw data returned by the devicelogs API
-            //console.log(response);
-            var result = getDataOfAYear(deviceID,response,2018);
-            // Return result
-            //console.log(getDataOfAYear(response,2018));
+            //console.log(raw_data);
+            var result = getDataOfAYear(deviceID, raw_data, precisionValue);
+            //console.log(getDataOfAYear(deviceID, raw_data, precisionValue));
             res.status(200).send(result);
         }, function(error){
             console.log(error)
             res.status(500).send("Request Failed: No response received");
         });
-    } else {
+    } 
+    else 
+    {
         res.status(500).send("Request Failed: Invalid parameters")
     }
     
 }
 
+let getDataOfDays = (deviceID,raw_data,year) => {
+
+}
+
+let getDataOfMonth = (deviceID,raw_data,year) => {
+
+}
+
 let getDataOfAYear = (deviceID,raw_data,year) => {
+
+    //console.log(raw_data);
 
     var eventValue = raw_data[deviceID].state.power.value;
     var eventTimestamp = raw_data[deviceID].state.power.timestamp;
 
     var yearLogs = {
-            power: {
-                total_on: {
+        [deviceID] : {
+            state : {
+                power: {
+                  on: {
                     x_months: [],
                     y_hours: []
-                },
-                total_off: {
+                  },
+                  off: {
                     x_months: [],
                     y_hours: []
-                }
-            }
+                  }
+               }
+           }
         }
+    }
 
     // Go through each month in a year
     for(var month=0; month<12; month++){
@@ -62,8 +88,8 @@ let getDataOfAYear = (deviceID,raw_data,year) => {
         var isTimestampExists = false;
 
         //console.log("Current Month: " + (month+1));
-        yearLogs.power.total_on.x_months.push(month+1);
-        yearLogs.power.total_off.x_months.push(month+1);
+        yearLogs[deviceID].state.power.on.x_months.push(month+1);
+        yearLogs[deviceID].state.power.off.x_months.push(month+1);
         
         for(var i=0;i<eventValue.length;i++){
             var fetchedTime = new Date(eventTimestamp[i])
@@ -73,39 +99,39 @@ let getDataOfAYear = (deviceID,raw_data,year) => {
                   totalONhours += eventTimestamp[i+1] - eventTimestamp[i]; 
                }
                //console.log("All Timestamps: " + eventTimestamp[i]);
-               isTimestampExists = true;
+               //isTimestampExists = true;
             } else {
-               isTimestampExists = false; 
+               //isTimestampExists = false; 
             }
+        }
+
+        if(totalONhours != 0){
+            isTimestampExists = true
+        } else {
+            isTimestampExists = false;
         }
 
         if(isTimestampExists == false){
             //console.log("Timestamps: NO DATA");
-            yearLogs.power.total_on.y_hours.push(0);
-            yearLogs.power.total_off.y_hours.push(0);
+            yearLogs[deviceID].state.power.on.y_hours.push(0);
+            yearLogs[deviceID].state.power.off.y_hours.push(0);
         } else {
             //console.log("Total ON Hours Timestamp: " + totalONhours);
-            //var d = new Date(totalONhours);
-            //totalONhours = d.getHours();
             totalONhours = totalONhours/36000000;
             //totalONhours = totalONhours/36e5;
-            //console.log("Total ON Hours: " + totalONhours);
-            yearLogs.power.total_on.y_hours.push(totalONhours);
+            yearLogs[deviceID].state.power.on.y_hours.push(totalONhours);
             // Calculate Total OFF Hours
             totalOFFhours = totalHours - totalONhours;
-            yearLogs.power.total_off.y_hours.push(totalOFFhours);
+            yearLogs[deviceID].state.power.off.y_hours.push(totalOFFhours);
         }
     }
-    
     //console.log(yearLogs);
     return yearLogs;
-
 }
 
 function getTotalDaysInMonth (month,year) {
     return new Date(year, month + 1, 0).getDate();
 }
-
 
 module.exports ={
     getDeviceGraphs

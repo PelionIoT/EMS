@@ -39,6 +39,7 @@ let getEMS_RawData = (req, sortOrder) => {
                 //console.log(response);
                 allDeviceStates.forEach((stateID) => {
                     var stateModel = {
+                                  isDataAvailable: false,
                                   value: [],
                                   timestamp: []
                                  }
@@ -46,9 +47,12 @@ let getEMS_RawData = (req, sortOrder) => {
                     //console.log(stateID)
                     response._embedded.logs.forEach((deviceEvent) => {
                         if(deviceEvent.event == "state-" + stateID){
+                            deviceLogs[deviceID].state[stateID].isDataAvailable = true;
                             deviceLogs[deviceID].state[stateID].value.push(deviceEvent.metadata)
                             deviceLogs[deviceID].state[stateID].timestamp.push(deviceEvent.timestamp)
                             //console.log(deviceLogs)
+                        } else {
+                            deviceLogs[deviceID].state[stateID].isDataAvailable = false;
                         }
                     })
                 })
