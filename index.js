@@ -65,8 +65,8 @@ try {
 
 
 server.listen(port, () => {
-    logger.info(`Server started on port ${server.address().port} :)`);
+    logger.info(`Server active on port: ${server.address().port}`);
 });
 
 
-logger.info('EMS RESTful API server started on: ' + port);
+logger.info('EMS API Server started on: ' + port);

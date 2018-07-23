@@ -64,18 +64,18 @@ class Logger {
     info(str) {
     	if(typeof global.EMSLogLevel != 'undefined' && global.EMSLogLevel >= 2) {
     		if(typeof logger.info != 'undefined')
-    			logger.info(this.color('[' + getDateTime() + '] EMS' + ' ' + this._moduleName + ': ' +  str));
+    			logger.info(colors.yellow('[' + getDateTime() + '] EMS' + ' ' + this._moduleName + ': ' +  str));
     		else
-    			console.log(this.color('[' + getDateTime() + '] EMS' + ' ' + this._moduleName + ': ' +  str));
+    			console.log(colors.yellow('[' + getDateTime() + '] EMS' + ' ' + this._moduleName + ': ' +  str));
     	}
     }
 
     debug(str) {
     	if(typeof global.EMSLogLevel != 'undefined' && global.EMSLogLevel >= 3) {
     		if(typeof logger.info != 'undefined')
-    			logger.info(this.color('[' + getDateTime() + '] EMS' + ' ' + this._moduleName + ': ' +  str));
+    			logger.info(colors.yellow('[' + getDateTime() + '] EMS' + ' ' + this._moduleName + ': ' +  str));
     		else
-    			console.log(this.color('[' + getDateTime() + '] EMS' + ' ' + this._moduleName + ': ' +  str));
+    			console.log(colors.yellow('[' + getDateTime() + '] EMS' + ' ' + this._moduleName + ': ' +  str));
     	}
     }
 

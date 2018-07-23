@@ -6,13 +6,13 @@ const Middleware = require('./middlewares');
 
 //All controllers load here
 const EMS_Raw = require('./controllers/raw_data');
-const BST_Data = require('./controllers/binaryStateTimeData')  
+const DeviceGraphs = require('./controllers/device_graphs')  
 
 //Developer debugging routes
 router.use(require('./internal.js'));
 
-router.get('/accounts/:accountID/sites/:siteID/ems/raw_data',Middleware.getEnterpriseTools, EMS_Raw.getEMS_RawData);
-router.get('/accounts/:accountID/sites/:siteID/ems/binarystatetimedata',Middleware.getEnterpriseTools, BST_Data.binaryStateTimeData);
+router.get('/accounts/:accountID/sites/:siteID/:relayID/ems/raw_data',Middleware.getEnterpriseTools, EMS_Raw.getRawData);
+router.get('/accounts/:accountID/sites/:siteID/:relayID/ems/device_graphs',Middleware.getEnterpriseTools, DeviceGraphs.getDeviceGraphs);
 
 
 module.exports = router;
