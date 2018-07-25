@@ -21,7 +21,7 @@
     "chalk": "^2.1.0",
     "colors": "^1.1.2",
     "commander": "^2.13.0",
-    "enterprise-tools": "git+ssh://git@github.com/WigWagCo/enterprise-tools.git#v1.0.10",
+    "enterprise-tools": "git+ssh://git@github.com/WigWagCo/enterprise-tools.git",
     "express": "^4.16.3",
     "express-device": "^0.4.2",
     "fcm-push": "^1.1.3",

@@ -5,28 +5,31 @@ let getDeviceGraphs = (req, res) => {
     var deviceID = req.query.deviceID;
 
     // Precision = Days / Months / Year
-    var precisionType = req.query.precision;
+    var pType = req.query.ptype;
 
     // Precision Value
-    // Days = Number of Days (ex: 2 / 7 / 25)
-    // Month = Any month (ex: July)
+    // Days = 1Day / 1Week / 2Weeks
+    // Month = 1Month / 3Month / 6Month
     // Year = Any Year (ex: 2018)
-    var precisionValue = req.query.pvalue
+    var pValue = req.query.pvalue;
 
-    if(precisionType != undefined && precisionType == "days")
+    // If specified then fetch particular device state else retrieve all.
+    var state = req.query.state;
+
+    if(pType != undefined && pType == "days" && pValue != undefined)
     {
         res.status(200).send("Under construction");
     }
-    else if(precisionType != undefined && precisionType == "month")
+    else if(pType != undefined && pType == "month" && pValue != undefined)
     {
         res.status(200).send("Under construction");
     }
-    else if(precisionType != undefined && precisionType == "year")
+    else if(pType != undefined && pType == "year" && pValue != undefined)
     {
         EMS_Raw.getEMS_RawData(req,"asc").then(function(raw_data){
             // Raw data returned by the devicelogs API
             //console.log(raw_data);
-            var result = getDataOfAYear(deviceID, raw_data, precisionValue);
+            var result = getDataOfAYear(deviceID, raw_data, pValue);
             //console.log(getDataOfAYear(deviceID, raw_data, precisionValue));
             res.status(200).send(result);
         }, function(error){

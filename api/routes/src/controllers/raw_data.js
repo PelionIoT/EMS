@@ -10,7 +10,7 @@ let getRawData = (req,res) => {
     });
 };
 
-let getEMS_RawData = (req, sortOrder) => {
+let getEMS_RawData = (req, sortOrder, beforeTime, afterTime) => {
     
     return new Promise(function(resolve,reject){
     
@@ -20,50 +20,44 @@ let getEMS_RawData = (req, sortOrder) => {
     var relayID = req.params.relayID;
     // Query Values
     var deviceID = req.query.deviceID;
-    
-
+    // Returned Data BaseModel
     var deviceLogs = { [deviceID]: { state:{ } } }
 
     // Get device states
-    /*req.dcs.getResourceState(siteID, `id=\"${deviceID}\"`, null).then(function(resp) {*/
-            
-            //console.log(DeviceStateConstants.allstates.light_bulb_state)
-            var allDeviceStates = DeviceStateConstants.allstates.light_bulb_state
-            //var allDeviceStates = Object.keys(resp.state[deviceID]);
-            //console.log(allDeviceStates);
+    req.dcs.getDeviceInterfaces(siteID,deviceID).then(function(deviceStatesObject){
+       //console.log(deviceStatesObject)
+       var allDeviceStates = Object.keys(deviceStatesObject)
+       //console.log(allDeviceStates)
 
-            //var queryString = "&relay=" + relayID + "&device=" + deviceID + "&event=state-" + result[0];
-            var queryString = "&relay=" + relayID + "&device=" + deviceID + "&sort=" + sortOrder;
+       //var queryString = "&relay=" + relayID + "&device=" + deviceID + "&event=state-" + result[0];
+       var queryString = "&relay=" + relayID + "&device=" + deviceID + "&sort=" + sortOrder;
             
-            getDeviceLogs(req,accountID,siteID,queryString).then(function(response){
-                //console.log(response);
-                allDeviceStates.forEach((stateID) => {
-                    var stateModel = {
-                                  isDataAvailable: false,
-                                  value: [],
-                                  timestamp: []
-                                 }
-                    deviceLogs[deviceID].state[stateID] = stateModel
-                    //console.log(stateID)
-                    response._embedded.logs.forEach((deviceEvent) => {
-                        if(deviceEvent.event == "state-" + stateID){
-                            deviceLogs[deviceID].state[stateID].isDataAvailable = true;
-                            deviceLogs[deviceID].state[stateID].value.push(deviceEvent.metadata)
-                            deviceLogs[deviceID].state[stateID].timestamp.push(deviceEvent.timestamp)
-                            //console.log(deviceLogs)
-                        } else {
-                            deviceLogs[deviceID].state[stateID].isDataAvailable = false;
-                        }
-                    })
-                })
-                resolve(deviceLogs); 
-            }, function(err){
-                reject(err)
-            });
-
-        /*},function(err) {
-            reject(err)
-        })*/
+       getDeviceLogs(req,accountID,siteID,queryString).then(function(response){
+           //console.log(response);
+           allDeviceStates.forEach((stateID) => {
+               var stateModel = {
+                             isDataAvailable: false,
+                             value: [],
+                             timestamp: []
+                            }
+               deviceLogs[deviceID].state[stateID] = stateModel
+               //console.log(stateID)
+               response._embedded.logs.forEach((deviceEvent) => {
+                   if(deviceEvent.event == "state-" + stateID){
+                       deviceLogs[deviceID].state[stateID].isDataAvailable = true;
+                       deviceLogs[deviceID].state[stateID].value.push(deviceEvent.metadata)
+                       deviceLogs[deviceID].state[stateID].timestamp.push(deviceEvent.timestamp)
+                       //console.log(deviceLogs)
+                   } else {
+                       deviceLogs[deviceID].state[stateID].isDataAvailable = false;
+                   }
+               })
+           })
+           resolve(deviceLogs); 
+       }, function(err){
+           reject(err)
+       });
+    });  
     });
 };
 
