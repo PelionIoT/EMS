@@ -26,6 +26,7 @@ let getDeviceGraphs = (req, res) => {
     }
     else if(pType != undefined && pType == "year" && pValue != undefined)
     {
+        
         EMS_Raw.getEMS_RawData(req,"asc").then(function(raw_data){
             // Raw data returned by the devicelogs API
             //console.log(raw_data);

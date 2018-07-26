@@ -1,13 +1,24 @@
 'use strict';
-const DeviceStateConstants = require('../middlewares/stateconstants')
 var rp = require('request-promise');
 
 let getRawData = (req,res) => {
-    getEMS_RawData(req,"desc").then(function(response){
-       res.status(200).send(response);
-    }, function(error){
-       res.status(500).send(error)
-    });
+    
+    var beforeTime = req.query.before;
+    var afterTime = req.query.after;
+
+    if(beforeTime != undefined && afterTime != undefined){
+        getEMS_RawData(req, "desc", beforeTime, afterTime).then(function(response){
+            res.status(200).send(response);
+         }, function(error){
+            res.status(500).send(error)
+         });
+    } else {
+        getEMS_RawData(req,"desc").then(function(response){
+            res.status(200).send(response);
+         }, function(error){
+            res.status(500).send(error)
+         });
+    }
 };
 
 let getEMS_RawData = (req, sortOrder, beforeTime, afterTime) => {
@@ -29,72 +40,47 @@ let getEMS_RawData = (req, sortOrder, beforeTime, afterTime) => {
        var allDeviceStates = Object.keys(deviceStatesObject)
        //console.log(allDeviceStates)
 
-       //var queryString = "&relay=" + relayID + "&device=" + deviceID + "&event=state-" + result[0];
-       var queryString = "&relay=" + relayID + "&device=" + deviceID + "&sort=" + sortOrder;
-            
-       getDeviceLogs(req,accountID,siteID,queryString).then(function(response){
+       if(beforeTime == undefined && afterTime == undefined){
+           beforeTime = null
+           afterTime = null
+       }
+
+       //var nowTime = new Date(1532083689987).toISOString()
+       //var nowTime1 = new Date(1532085003521).toISOString()
+       //after: 2018-07-20T10:48:09.987Z before: 2018-07-20T11:10:03.521Z
+       //console.log("after: " + nowTime + " before: " + nowTime1)
+       
+       // Get logs from device_logs API
+       req.dcs.getDeviceLogs(accountID,siteID,relayID,deviceID,null,beforeTime,afterTime,null,sortOrder).then(function(response){
            //console.log(response);
            allDeviceStates.forEach((stateID) => {
-               var stateModel = {
-                             isDataAvailable: false,
-                             value: [],
-                             timestamp: []
-                            }
-               deviceLogs[deviceID].state[stateID] = stateModel
-               //console.log(stateID)
-               response._embedded.logs.forEach((deviceEvent) => {
-                   if(deviceEvent.event == "state-" + stateID){
-                       deviceLogs[deviceID].state[stateID].isDataAvailable = true;
-                       deviceLogs[deviceID].state[stateID].value.push(deviceEvent.metadata)
-                       deviceLogs[deviceID].state[stateID].timestamp.push(deviceEvent.timestamp)
-                       //console.log(deviceLogs)
-                   } else {
-                       deviceLogs[deviceID].state[stateID].isDataAvailable = false;
-                   }
-               })
-           })
-           resolve(deviceLogs); 
+            var stateModel = {
+                          isDataAvailable: false,
+                          value: [],
+                          timestamp: []
+                         }
+            deviceLogs[deviceID].state[stateID] = stateModel
+            //console.log(stateID)
+            response._embedded.logs.forEach((deviceEvent) => {
+                if(deviceEvent.event == "state-" + stateID){
+                    deviceLogs[deviceID].state[stateID].isDataAvailable = true;
+                    deviceLogs[deviceID].state[stateID].value.push(deviceEvent.metadata)
+                    deviceLogs[deviceID].state[stateID].timestamp.push(deviceEvent.timestamp)
+                    //console.log(deviceLogs)
+                } else {
+                    deviceLogs[deviceID].state[stateID].isDataAvailable = false;
+                }
+            })
+        })
+        resolve(deviceLogs);
        }, function(err){
-           reject(err)
+        reject(err)
        });
     });  
     });
 };
 
-let getDeviceLogs = (req,accountID,siteID,queryString) => {
-    return new Promise(function(resolve,reject){
-    var cloudurl = req.headers.cloudurl;
-    var authToken = req.headers.authorization;
-
-    /*Old method 
-      var url = cloudurl + "/api/device_logs?account=" + accountID + "&site=" + siteID 
-              + "&relay=" + relayID + "&device=" + deviceID + "&event=state-" + stateID;*/
-
-      var url = cloudurl + "/api/device_logs?account=" + accountID + "&site=" + siteID + queryString;        
-
-    var options = {
-        uri: url,
-        headers: {
-            'Authorization': authToken,
-            'cloudurl': cloudurl
-        },
-        json: true // Automatically parses the JSON string in the response
-    };
-     
-    rp(options)
-        .then(function (response) {
-            resolve(response);
-        })
-        .catch(function (err) {
-            // API call failed...
-            console.log(err);
-            reject(err);
-        });
-    });
-};
-
 module.exports = {
     getRawData,
-    getEMS_RawData,
-    getDeviceLogs
+    getEMS_RawData
 }
