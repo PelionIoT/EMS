@@ -1,6 +1,3 @@
-'use strict';
-var rp = require('request-promise');
-
 let getRawData = (req,res) => {
     
     var beforeTime = req.query.before;
@@ -44,11 +41,6 @@ let getEMS_RawData = (req, sortOrder, beforeTime, afterTime) => {
            beforeTime = null
            afterTime = null
        }
-
-       //var nowTime = new Date(1532083689987).toISOString()
-       //var nowTime1 = new Date(1532085003521).toISOString()
-       //after: 2018-07-20T10:48:09.987Z before: 2018-07-20T11:10:03.521Z
-       //console.log("after: " + nowTime + " before: " + nowTime1)
        
        // Get logs from device_logs API
        req.dcs.getDeviceLogs(accountID,siteID,relayID,deviceID,null,beforeTime,afterTime,null,sortOrder).then(function(response){

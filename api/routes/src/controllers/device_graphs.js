@@ -15,23 +15,54 @@ let getDeviceGraphs = (req, res) => {
 
     // If specified then fetch particular device state else retrieve all.
     var state = req.query.state;
+    var currentTime = new Date().toISOString();
 
-    if(pType != undefined && pType == "days" && pValue != undefined)
+    if(pType != undefined && pType == "Days" && pValue != undefined)
     {
         res.status(200).send("Under construction");
     }
-    else if(pType != undefined && pType == "month" && pValue != undefined)
+    else if(pType != undefined && pType == "Month" && pValue != undefined)
     {
-        res.status(200).send("Under construction");
+        var afterTime;
+        if(pValue == "1M"){
+            /*afterTime = getAfterDate(currentTime,"month",1)
+
+            EMS_Raw.getEMS_RawData(req, "asc", currentTime, afterTime).then(function(raw_data){
+                res.status(200).send(raw_data);
+            },function(error){
+                console.log(error)
+                res.status(500).send("Request Failed: No response received");
+            })*/
+        } else if(pValue == "3M"){
+            afterTime = getAfterDate(currentTime,"month",3)
+            EMS_Raw.getEMS_RawData(req, "asc", currentTime, afterTime).then(function(raw_data){
+                var startMonth = new Date(afterTime).getMonth()
+                var endMonth = new Date(currentTime).getMonth()
+                var result = getDataOfMonths(deviceID,raw_data,startMonth,endMonth)
+                res.status(200).send(result);
+            },function(error){
+                console.log(error)
+                res.status(500).send("Request Failed: No response received");
+            })
+        } else if(pValue == "6M"){
+           
+        } else {
+            res.status(500).send("Request Failed: Invalid parameters")
+        }
     }
-    else if(pType != undefined && pType == "year" && pValue != undefined)
+    else if(pType != undefined && pType == "Year")
     {
-        
-        EMS_Raw.getEMS_RawData(req,"asc").then(function(raw_data){
+        // Get last date of current year for beforeTime & last date of last year for afterTime
+        var dateOb = new Date(currentTime)
+        var beforeTime = new Date((dateOb.getFullYear()+1),0,1,0,0,0,0).toISOString()
+        var afterTime = getAfterDate(currentTime,"year")
+        //console.log("Before Date: " + beforeTime + " After Date: " + afterTime)
+       
+        EMS_Raw.getEMS_RawData(req, "asc", beforeTime, afterTime).then(function(raw_data){
             // Raw data returned by the devicelogs API
             //console.log(raw_data);
-            var result = getDataOfAYear(deviceID, raw_data, pValue);
-            //console.log(getDataOfAYear(deviceID, raw_data, precisionValue));
+            var result = getDataOfAYear(deviceID, raw_data);
+            //console.log(getDataOfAYear(deviceID, raw_data, pValue));
             res.status(200).send(result);
         }, function(error){
             console.log(error)
@@ -45,15 +76,19 @@ let getDeviceGraphs = (req, res) => {
     
 }
 
-let getDataOfDays = (deviceID,raw_data,year) => {
+let getDataOfDays = (deviceID,raw_data) => {
 
 }
 
-let getDataOfMonth = (deviceID,raw_data,year) => {
+let getDataOfAMonth = (deviceID,raw_data) => {
 
 }
 
-let getDataOfAYear = (deviceID,raw_data,year) => {
+let getDataOfMonths = (deviceID,raw_data,startMonth,endMonth) => {
+    return "Start Month: " + getMonthName(startMonth) + " End Month: " + getMonthName(endMonth)
+}
+
+let getDataOfAYear = (deviceID,raw_data) => {
 
     //console.log(raw_data);
 
@@ -82,6 +117,7 @@ let getDataOfAYear = (deviceID,raw_data,year) => {
 
         //console.log(getTotalDaysInMonth(month,2018));
 
+        var year = new Date().getFullYear();
         var totalDays = getTotalDaysInMonth(month,year);
         var totalHours = totalDays * 24;
 
@@ -92,8 +128,8 @@ let getDataOfAYear = (deviceID,raw_data,year) => {
         var isTimestampExists = false;
 
         //console.log("Current Month: " + (month+1));
-        yearLogs[deviceID].state.power.on.x_months.push(month+1);
-        yearLogs[deviceID].state.power.off.x_months.push(month+1);
+        yearLogs[deviceID].state.power.on.x_months.push(getMonthName(month));
+        yearLogs[deviceID].state.power.off.x_months.push(getMonthName(month));
         
         for(var i=0;i<eventValue.length;i++){
             var fetchedTime = new Date(eventTimestamp[i])
@@ -135,6 +171,40 @@ let getDataOfAYear = (deviceID,raw_data,year) => {
 
 function getTotalDaysInMonth (month,year) {
     return new Date(year, month + 1, 0).getDate();
+}
+
+function getMonthName(monthNumber){
+   var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+   return months[monthNumber];
+}
+
+function getAfterDate(beforeTime,ptype,pvalue){
+    var dateOb = new Date(beforeTime);
+    var afterDate;
+    if(ptype == "day"){
+        if(pvalue == 1){
+            afterDate = new Date(dateOb.getFullYear(),dateOb.getMonth(),dateOb.getDate(),(dateOb.getHours()-24),dateOb.getMinutes(),dateOb.getSeconds(),dateOb.getMilliseconds()).toISOString()
+        } else if(pvalue == 2){
+            afterDate = new Date(dateOb.getFullYear(),dateOb.getMonth(),dateOb.getDate(),(dateOb.getHours()-48),dateOb.getMinutes(),dateOb.getSeconds(),dateOb.getMilliseconds()).toISOString()
+        }
+    } else if(ptype == "week"){
+        if(pvalue == 1){
+            afterDate = new Date(dateOb.getFullYear(),dateOb.getMonth(),(dateOb.getDate()-7),dateOb.getHours(),dateOb.getMinutes(),dateOb.getSeconds(),dateOb.getMilliseconds()).toISOString()
+        } else if(pvalue == 2){
+            afterDate = new Date(dateOb.getFullYear(),dateOb.getMonth(),(dateOb.getDate()-14),dateOb.getHours(),dateOb.getMinutes(),dateOb.getSeconds(),dateOb.getMilliseconds()).toISOString()
+        }
+    } else if(ptype == "month"){
+      if(pvalue == 1){
+          afterDate = new Date(dateOb.getFullYear(),(dateOb.getMonth()-1),dateOb.getDate(),dateOb.getHours(),dateOb.getMinutes(),dateOb.getSeconds(),dateOb.getMilliseconds()).toISOString()
+      } else if(pvalue == 3){
+          afterDate = new Date(dateOb.getFullYear(),(dateOb.getMonth()-3),dateOb.getDate(),dateOb.getHours(),dateOb.getMinutes(),dateOb.getSeconds(),dateOb.getMilliseconds()).toISOString()
+      } else if(pvalue == 6){
+          afterDate = new Date(dateOb.getFullYear(),(dateOb.getMonth()-6),dateOb.getDate(),dateOb.getHours(),dateOb.getMinutes(),dateOb.getSeconds(),dateOb.getMilliseconds()).toISOString()
+      }
+    } else if(ptype == "year"){
+          afterDate = new Date((dateOb.getFullYear()-1),11,31,11,59,59,59).toISOString()
+    }
+    return afterDate
 }
 
 module.exports ={
