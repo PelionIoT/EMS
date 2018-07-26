@@ -25,14 +25,13 @@ let getDeviceGraphs = (req, res) => {
     {
         var afterTime;
         if(pValue == "1M"){
-            /*afterTime = getAfterDate(currentTime,"month",1)
-
-            EMS_Raw.getEMS_RawData(req, "asc", currentTime, afterTime).then(function(raw_data){
+            afterTime = getAfterDate(currentTime,"month",1)
+            EMS_Raw.getEMS_RawData(req, "desc", currentTime, afterTime).then((raw_data) => {
+                var result = getDataOfMonth(deviceID,raw_data)
                 res.status(200).send(raw_data);
-            },function(error){
-                console.log(error)
-                res.status(500).send("Request Failed: No response received");
-            })*/
+            }, (err) => {
+                console.log("Failed: ", err.statusCode ? (err.statusCode + " --> " + err.statusMessage) : err)
+            })
         } else if(pValue == "3M"){
             afterTime = getAfterDate(currentTime,"month",3)
             EMS_Raw.getEMS_RawData(req, "asc", currentTime, afterTime).then(function(raw_data){
@@ -80,8 +79,11 @@ let getDataOfDays = (deviceID,raw_data) => {
 
 }
 
-let getDataOfAMonth = (deviceID,raw_data) => {
 
+let getDataOfMonth = (deviceID,raw_data) => {
+    var eventValue = raw_data[deviceID].state.power.value;
+    var eventTimestamp = raw_data[deviceID].state.power.timestamp;
+    
 }
 
 let getDataOfMonths = (deviceID,raw_data,startMonth,endMonth) => {
