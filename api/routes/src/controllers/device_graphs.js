@@ -123,7 +123,65 @@ let getDeviceGraphs = (req, res) => {
 let getDataOfHours = (deviceID,raw_data,hoursCount) => {
     var eventValue = raw_data[deviceID].state.power.value;
     var eventTimestamp = raw_data[deviceID].state.power.timestamp;
-    return "Under construction"
+
+    var dayLogs = {
+        [deviceID] : {
+            state : {
+                power: {
+                  on: {
+                    x_hours: [],
+                    y_hours: []
+                  },
+                  off: {
+                    x_hours: [],
+                    y_hours: []
+                  }
+               }
+           }
+        }
+    }
+
+    var day = new Date();
+    for(var a=0; a<hoursCount; a++) {
+        if(a > 0)   day.setHours(day.getHours()-1)
+
+        var hour = day.getHours()
+        var date = day.getDate()
+        var month = day.getMonth()
+        var year = day.getFullYear()
+        var totalHours = hoursCount*24;
+
+        var totalONhours=0;
+        var totalOFFhours=0;
+
+        dayLogs[deviceID].state.power.on.x_hours.push(date+' '+getMonthName(month)+', '+year+' '+hour+':00');
+        dayLogs[deviceID].state.power.off.x_hours.push(date+' '+getMonthName(month)+', '+year+' '+hour+':00');
+
+        for(var i=0;i<eventValue.length;i++){
+            var fetchedTime = new Date(eventTimestamp[i])
+            if(fetchedTime.getHours() == hour &&
+                fetchedTime.getDate() == date &&
+                fetchedTime.getMonth() == month &&
+                fetchedTime.getFullYear() == year){
+                if(eventValue[i] == 'on'){
+                    totalONhours += eventTimestamp[i+1] - eventTimestamp[i];
+                }
+            }
+        }
+
+        if(totalONhours != 0){
+            totalONhours = totalONhours/36000000;
+            //totalONhours = totalONhours/36e5;
+            dayLogs[deviceID].state.power.on.y_hours.push(totalONhours);
+            // Calculate Total OFF Hours
+            totalOFFhours = totalHours - totalONhours;
+            dayLogs[deviceID].state.power.off.y_hours.push(totalOFFhours);
+        } else {
+            dayLogs[deviceID].state.power.on.y_hours.push(0);
+            dayLogs[deviceID].state.power.off.y_hours.push(0);
+        }
+    }
+    return dayLogs;
 }
 
 let getDataOfDays = (deviceID,raw_data,dayCount) => {
