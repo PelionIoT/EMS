@@ -19,16 +19,51 @@ let getDeviceGraphs = (req, res) => {
 
     if(pType != undefined && pType == "Days" && pValue != undefined)
     {
-        res.status(200).send("Under construction");
+        var afterTime;
+        if(pValue == "1D"){
+            afterTime = getAfterDate(currentTime,"day",1)
+            EMS_Raw.getEMS_RawData(req, "asc", currentTime, afterTime).then((raw_data) => {
+                var result = getDataOfHours(deviceID,raw_data,24)
+                res.status(200).send(result);
+            }, (err) => {
+                console.log("Failed: ", err.statusCode ? (err.statusCode + " --> " + err.statusMessage) : err)
+            })
+        } else if(pValue == "2D"){
+            afterTime = getAfterDate(currentTime,"day",2)
+            EMS_Raw.getEMS_RawData(req, "asc", currentTime, afterTime).then(function(raw_data){
+                var result = getDataOfDays(deviceID,raw_data,2)
+                res.status(200).send(result);
+            },function(error){
+                console.log(error)
+                res.status(500).send("Request Failed: No response received");
+            })
+        } else {
+            res.status(500).send("Request Failed: Invalid parameters")
+        }
+    }
+    else if(pType != undefined && pType == "Week" && pValue != undefined)
+    {
+        var afterTime;
+        if(pValue == "1W"){
+            afterTime = getAfterDate(currentTime,"week",1)
+            EMS_Raw.getEMS_RawData(req, "asc", currentTime, afterTime).then((raw_data) => {
+                var result = getDataOfDays(deviceID,raw_data,7)
+                res.status(200).send(result);
+            }, (err) => {
+                console.log("Failed: ", err.statusCode ? (err.statusCode + " --> " + err.statusMessage) : err)
+            })
+        } else {
+            res.status(500).send("Request Failed: Invalid parameters")
+        }
     }
     else if(pType != undefined && pType == "Month" && pValue != undefined)
     {
         var afterTime;
         if(pValue == "1M"){
             afterTime = getAfterDate(currentTime,"month",1)
-            EMS_Raw.getEMS_RawData(req, "desc", currentTime, afterTime).then((raw_data) => {
-                var result = getDataOfMonth(deviceID,raw_data)
-                res.status(200).send(raw_data);
+            EMS_Raw.getEMS_RawData(req, "asc", currentTime, afterTime).then((raw_data) => {
+                var result = getDataOfDays(deviceID,raw_data,30)
+                res.status(200).send(result);
             }, (err) => {
                 console.log("Failed: ", err.statusCode ? (err.statusCode + " --> " + err.statusMessage) : err)
             })
@@ -85,10 +120,73 @@ let getDeviceGraphs = (req, res) => {
     
 }
 
-let getDataOfDays = (deviceID,raw_data) => {
-
+let getDataOfHours = (deviceID,raw_data,hoursCount) => {
+    var eventValue = raw_data[deviceID].state.power.value;
+    var eventTimestamp = raw_data[deviceID].state.power.timestamp;
+    return "Under construction"
 }
 
+let getDataOfDays = (deviceID,raw_data,dayCount) => {
+    var eventValue = raw_data[deviceID].state.power.value;
+    var eventTimestamp = raw_data[deviceID].state.power.timestamp;
+
+    var dayLogs = {
+        [deviceID] : {
+            state : {
+                power: {
+                  on: {
+                    x_days: [],
+                    y_hours: []
+                  },
+                  off: {
+                    x_days: [],
+                    y_hours: []
+                  }
+               }
+           }
+        }
+    }
+
+    // Go through each month
+    var day = new Date();
+    for(var a=0; a<dayCount; a++) {
+        if(a > 0)   day.setDate(day.getDate()-1)
+        var date = day.getDate()
+        var month = day.getMonth()
+        var year = day.getFullYear()
+        var totalHours = dayCount*24;
+
+        var totalONhours=0;
+        var totalOFFhours=0;
+        
+        dayLogs[deviceID].state.power.on.x_days.push(date+' '+getMonthName(month)+', '+year);
+        dayLogs[deviceID].state.power.off.x_days.push(date+' '+getMonthName(month)+', '+year);
+        
+        for(var i=0;i<eventValue.length;i++){
+            var fetchedTime = new Date(eventTimestamp[i])
+            if(fetchedTime.getDate() == date && 
+                  fetchedTime.getMonth() == month && 
+                  fetchedTime.getFullYear() == year){
+               if(eventValue[i] == 'on'){
+                  totalONhours += eventTimestamp[i+1] - eventTimestamp[i]; 
+               }
+            }
+        }
+
+        if(totalONhours != 0){
+            totalONhours = totalONhours/36000000;
+            //totalONhours = totalONhours/36e5;
+            dayLogs[deviceID].state.power.on.y_hours.push(totalONhours);
+            // Calculate Total OFF Hours
+            totalOFFhours = totalHours - totalONhours;
+            dayLogs[deviceID].state.power.off.y_hours.push(totalOFFhours);
+        } else {
+            dayLogs[deviceID].state.power.on.y_hours.push(0);
+            dayLogs[deviceID].state.power.off.y_hours.push(0);
+        }
+    }
+    return dayLogs;
+}
 
 let getDataOfMonth = (deviceID,raw_data) => {
     var eventValue = raw_data[deviceID].state.power.value;
