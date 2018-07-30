@@ -149,7 +149,7 @@ let getDataOfHours = (deviceID,raw_data,hoursCount) => {
         var date = day.getDate()
         var month = day.getMonth()
         var year = day.getFullYear()
-        var totalHours = hoursCount*24;
+        var totalHours = hoursCount;
 
         var totalONhours=0;
         var totalOFFhours=0;
