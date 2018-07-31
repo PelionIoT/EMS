@@ -31,7 +31,7 @@ let getDeviceGraphs = (req, res) => {
         } else if(pValue == "2D"){
             afterTime = getAfterDate(currentTime,"day",2)
             EMS_Raw.getEMS_RawData(req, "asc", currentTime, afterTime).then(function(raw_data){
-                var result = getDataOfDays(deviceID,raw_data,2)
+                var result = getDataOfHours(deviceID,raw_data,48)
                 res.status(200).send(result);
             },function(error){
                 console.log(error)
