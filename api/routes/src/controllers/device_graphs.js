@@ -98,9 +98,9 @@ let getDeviceGraphs = (req, res) => {
     {
         // Get last date of current year for beforeTime & last date of last year for afterTime
         var dateOb = new Date(currentTime)
-        var beforeTime = new Date((dateOb.getFullYear()+1),0,1,0,0,0,0).toISOString()
+        var beforeTime = new Date((dateOb.getFullYear()+1),0,1,5,0,0,0).toISOString()
         var afterTime = getAfterDate(currentTime,"year")
-        //console.log("Before Date: " + beforeTime + " After Date: " + afterTime)
+        console.log("Before Date: " + beforeTime + " After Date: " + afterTime)
        
         EMS_Raw.getEMS_RawData(req, "asc", beforeTime, afterTime).then(function(raw_data){
             // Raw data returned by the devicelogs API
@@ -364,7 +364,7 @@ function getAfterDate(beforeTime,ptype,pvalue){
           afterDate = new Date(dateOb.getFullYear(),(dateOb.getMonth()-6),dateOb.getDate(),dateOb.getHours(),dateOb.getMinutes(),dateOb.getSeconds(),dateOb.getMilliseconds()).toISOString()
       }
     } else if(ptype == "year"){
-          afterDate = new Date((dateOb.getFullYear()-1),11,31,11,59,59,59).toISOString()
+          afterDate = new Date((dateOb.getFullYear()-1),11,31,28,89,59,59).toISOString()
     }
     return afterDate
 }
