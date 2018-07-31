@@ -52,8 +52,6 @@ let getDeviceGraphs = (req, res) => {
             }, (err) => {
                 console.log("Failed: ", err.statusCode ? (err.statusCode + " --> " + err.statusMessage) : err)
             })
-        }
-        
         } else if(pValue == "2W"){
             afterTime = getAfterDate(currentTime,"week",2)
             EMS_Raw.getEMS_RawData(req, "asc", currentTime, afterTime).then((raw_data) => {
@@ -106,17 +104,15 @@ let getDeviceGraphs = (req, res) => {
     }
     else if(pType != undefined && pType == "Year")
     {
-        console.log(currentTime)
         // Get last date of current year for beforeTime & last date of last year for afterTime
         var dateOb = new Date(currentTime)
         var beforeTime = new Date((dateOb.getFullYear()+1),0,1,5,0,0,0).toISOString()
         var afterTime = getAfterDate(currentTime,"year")
         //console.log("Before Date: " + beforeTime + " After Date: " + afterTime)
        
-        EMS_Raw.getEMS_RawData(req, "asc", currentTime, afterTime).then(function(raw_data){
+        EMS_Raw.getEMS_RawData(req, "asc", beforeTime, afterTime).then(function(raw_data){
             // Raw data returned by the devicelogs API
             //console.log(raw_data);
-            //res.status(200).send(raw_data)
             var result = getDataOfAYear(deviceID, raw_data,currentTime,afterTime);
             //console.log(getDataOfAYear(deviceID, raw_data, pValue));
             res.status(200).send(result);
