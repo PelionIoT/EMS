@@ -31,7 +31,7 @@ let getDeviceGraphs = (req, res) => {
         } else if(pValue == "2D"){
             afterTime = getAfterDate(currentTime,"day",2)
             EMS_Raw.getEMS_RawData(req, "asc", currentTime, afterTime).then(function(raw_data){
-                var result = getDataOfHours(deviceID,raw_data,48)
+                var result = getDataOfDays(deviceID,raw_data,2)
                 res.status(200).send(result);
             },function(error){
                 console.log(error)
@@ -52,7 +52,8 @@ let getDeviceGraphs = (req, res) => {
             }, (err) => {
                 console.log("Failed: ", err.statusCode ? (err.statusCode + " --> " + err.statusMessage) : err)
             })
-        } else if(pValue == "2W"){
+        }
+        else if(pValue == "2W"){
             afterTime = getAfterDate(currentTime,"week",2)
             EMS_Raw.getEMS_RawData(req, "asc", currentTime, afterTime).then((raw_data) => {
                 var result = getDataOfDays(deviceID,raw_data,14,currentTime,afterTime)
@@ -104,15 +105,17 @@ let getDeviceGraphs = (req, res) => {
     }
     else if(pType != undefined && pType == "Year")
     {
+        console.log(currentTime)
         // Get last date of current year for beforeTime & last date of last year for afterTime
         var dateOb = new Date(currentTime)
         var beforeTime = new Date((dateOb.getFullYear()+1),0,1,5,0,0,0).toISOString()
         var afterTime = getAfterDate(currentTime,"year")
         //console.log("Before Date: " + beforeTime + " After Date: " + afterTime)
        
-        EMS_Raw.getEMS_RawData(req, "asc", beforeTime, afterTime).then(function(raw_data){
+        EMS_Raw.getEMS_RawData(req, "asc", currentTime, afterTime).then(function(raw_data){
             // Raw data returned by the devicelogs API
             //console.log(raw_data);
+            //res.status(200).send(raw_data)
             var result = getDataOfAYear(deviceID, raw_data,currentTime,afterTime);
             //console.log(getDataOfAYear(deviceID, raw_data, pValue));
             res.status(200).send(result);
@@ -170,8 +173,8 @@ let getDataOfHours = (deviceID,raw_data,hoursCount) => {
             if(fetchedTime.getHours() == hour &&
                 fetchedTime.getDate() == date &&
                 fetchedTime.getMonth() == month &&
-                fetchedTime.getFullYear() == year){    
-                if(eventValue[i+1] != null && eventValue[i] == 'on'){
+                fetchedTime.getFullYear() == year){
+                if(eventValue[i] == 'on'){
                     totalONhours += eventTimestamp[i+1] - eventTimestamp[i];
                 }
             }
@@ -214,39 +217,31 @@ let getDataOfDays = (deviceID,raw_data,dayCount,beforeTime,afterTime) => {
     }
 
     // Go through each day in a month
-    var beforeTime;
-    var lastState;
+    var day = new Date();
     for(var a=0; a<dayCount; a++) {
-        day = new Date(afterTime);
+        if(a > 0)   day.setDate(day.getDate()-1)
         var date = day.getDate()
         var month = day.getMonth()
         var year = day.getFullYear()
-        beforeTime = new Date(day.setDate(day.getDate()+1))
-
         var totalHours = 24;
+
         var totalONhours=0;
         var totalOFFhours=0;
         
         dayLogs[deviceID].state.power.on.x_days.push(date+' '+getMonthName(month)+' '+year);
         dayLogs[deviceID].state.power.off.x_days.push(date+' '+getMonthName(month)+' '+year);
-        flag = false;
-        for(var i=0;i<eventValue.length;i++) {
+        
+        for(var i=0;i<eventValue.length;i++){
             var fetchedTime = new Date(eventTimestamp[i])
             if(fetchedTime.getDate() == date && 
                   fetchedTime.getMonth() == month && 
-                  fetchedTime.getFullYear() == year) {
-                if(!flag && lastState == 'on') {
-                    totalONhours = eventTimestamp[i]-afterTime;
+                  fetchedTime.getFullYear() == year){
+               if(eventValue[i] == 'on'){
+                if(eventTimestamp[i+1] != null){
+                    totalONhours += eventTimestamp[i+1] - eventTimestamp[i];
                 }
-                flag = true;
-                if(eventValue[i] == 'on') {
-                    if(eventTimestamp[i+1] != null && eventTimestamp[i+1] < beforeTime) {
-                        totalONhours += eventTimestamp[i+1] - eventTimestamp[i];
-                    } else {
-                        totalONhours += beforeTime - eventTimestamp[i];
-                        lastState = eventValue[i];
-                    }
-                }
+                  totalONhours += 0; 
+               }
             }
         }
 
@@ -261,7 +256,6 @@ let getDataOfDays = (deviceID,raw_data,dayCount,beforeTime,afterTime) => {
             dayLogs[deviceID].state.power.on.y_hours.push(0);
             dayLogs[deviceID].state.power.off.y_hours.push(0);
         }
-        afterTime = beforeTime
     }
     return dayLogs;
 }
@@ -309,8 +303,8 @@ let getDataOfMonths = (deviceID,raw_data,beforeTime,afterTime) => {
         var isTimestampExists = false;
         //console.log(startMonth)
 
-        monthLogs[deviceID].state.power.on.x_months.push(getMonthName(startMonth) + ' ' + year);
-        monthLogs[deviceID].state.power.off.x_months.push(getMonthName(startMonth) + ' ' + year);
+        monthLogs[deviceID].state.power.on.x_months.push(getMonthName(startMonth)+ ' ' + year);
+        monthLogs[deviceID].state.power.off.x_months.push(getMonthName(startMonth) );
         //console.log(monthLogs[deviceID].state.power)
         //console.log(getMonthName(startMonth))
         for(var i=0;i<eventValue.length;i++){
@@ -349,6 +343,10 @@ let getDataOfMonths = (deviceID,raw_data,beforeTime,afterTime) => {
         }
         startMonth--
     }
+    monthLogs[deviceID].state.power.on.x_months.reverse()
+    monthLogs[deviceID].state.power.on.y_hours.reverse()
+    monthLogs[deviceID].state.power.off.x_months.reverse()
+    monthLogs[deviceID].state.power.off.y_hours.reverse()
     //console.log(monthLogs[deviceID].state.power.on.x_months)
     return monthLogs;
     
