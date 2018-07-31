@@ -61,14 +61,17 @@ let getDeviceGraphs = (req, res) => {
         var afterTime;
         if(pValue == "1M"){
             afterTime = getAfterDate(currentTime,"month",1)
+            //console.log("Before Date: " + currentTime + " After Date: " + afterTime)
             EMS_Raw.getEMS_RawData(req, "asc", currentTime, afterTime).then((raw_data) => {
-                var result = getDataOfDays(deviceID,raw_data,30)
+                var dayCount = getTotalDaysInMonth(new Date().getMonth(),new Date().getFullYear());
+                var result = getDataOfDays(deviceID,raw_data,dayCount)
                 res.status(200).send(result);
             }, (err) => {
                 console.log("Failed: ", err.statusCode ? (err.statusCode + " --> " + err.statusMessage) : err)
             })
         } else if(pValue == "3M"){
             afterTime = getAfterDate(currentTime,"month",3)
+            //console.log("Before Date: " + currentTime + " After Date: " + afterTime)
             EMS_Raw.getEMS_RawData(req, "asc", currentTime, afterTime).then(function(raw_data){
                 var startMonth = new Date(afterTime).getMonth()
                 var endMonth = new Date(currentTime).getMonth()
@@ -80,6 +83,7 @@ let getDeviceGraphs = (req, res) => {
             })
         } else if(pValue == "6M"){
             afterTime = getAfterDate(currentTime,"month",6)
+            //console.log("Before Date: " + currentTime + " After Date: " + afterTime)
             EMS_Raw.getEMS_RawData(req, "asc", currentTime, afterTime).then(function(raw_data){
                 var startMonth = new Date(afterTime).getMonth()
                 var endMonth = new Date(currentTime).getMonth()
@@ -100,7 +104,7 @@ let getDeviceGraphs = (req, res) => {
         var dateOb = new Date(currentTime)
         var beforeTime = new Date((dateOb.getFullYear()+1),0,1,5,0,0,0).toISOString()
         var afterTime = getAfterDate(currentTime,"year")
-        console.log("Before Date: " + beforeTime + " After Date: " + afterTime)
+        //console.log("Before Date: " + beforeTime + " After Date: " + afterTime)
        
         EMS_Raw.getEMS_RawData(req, "asc", beforeTime, afterTime).then(function(raw_data){
             // Raw data returned by the devicelogs API
@@ -205,7 +209,7 @@ let getDataOfDays = (deviceID,raw_data,dayCount) => {
         }
     }
 
-    // Go through each month
+    // Go through each day in a month
     var day = new Date();
     for(var a=0; a<dayCount; a++) {
         if(a > 0)   day.setDate(day.getDate()-1)
@@ -217,8 +221,8 @@ let getDataOfDays = (deviceID,raw_data,dayCount) => {
         var totalONhours=0;
         var totalOFFhours=0;
         
-        dayLogs[deviceID].state.power.on.x_days.push(date+' '+getMonthName(month)+', '+year);
-        dayLogs[deviceID].state.power.off.x_days.push(date+' '+getMonthName(month)+', '+year);
+        dayLogs[deviceID].state.power.on.x_days.push(date+' '+getMonthName(month)+' '+year);
+        dayLogs[deviceID].state.power.off.x_days.push(date+' '+getMonthName(month)+' '+year);
         
         for(var i=0;i<eventValue.length;i++){
             var fetchedTime = new Date(eventTimestamp[i])
@@ -226,7 +230,10 @@ let getDataOfDays = (deviceID,raw_data,dayCount) => {
                   fetchedTime.getMonth() == month && 
                   fetchedTime.getFullYear() == year){
                if(eventValue[i] == 'on'){
-                  totalONhours += eventTimestamp[i+1] - eventTimestamp[i]; 
+                if(eventTimestamp[i+1] != null){
+                    totalONhours += eventTimestamp[i+1] - eventTimestamp[i];
+                }
+                  totalONhours += 0; 
                }
             }
         }
@@ -244,12 +251,6 @@ let getDataOfDays = (deviceID,raw_data,dayCount) => {
         }
     }
     return dayLogs;
-}
-
-let getDataOfMonth = (deviceID,raw_data) => {
-    var eventValue = raw_data[deviceID].state.power.value;
-    var eventTimestamp = raw_data[deviceID].state.power.timestamp;
-    
 }
 
 let getDataOfMonths = (deviceID,raw_data,startMonth,endMonth) => {
@@ -357,11 +358,11 @@ function getAfterDate(beforeTime,ptype,pvalue){
         }
     } else if(ptype == "month"){
       if(pvalue == 1){
-          afterDate = new Date(dateOb.getFullYear(),(dateOb.getMonth()-1),dateOb.getDate(),dateOb.getHours(),dateOb.getMinutes(),dateOb.getSeconds(),dateOb.getMilliseconds()).toISOString()
+          afterDate = new Date(dateOb.getFullYear(),(dateOb.getMonth()),1,5,29,0,0).toISOString()
       } else if(pvalue == 3){
-          afterDate = new Date(dateOb.getFullYear(),(dateOb.getMonth()-3),dateOb.getDate(),dateOb.getHours(),dateOb.getMinutes(),dateOb.getSeconds(),dateOb.getMilliseconds()).toISOString()
+          afterDate = new Date(dateOb.getFullYear(),(dateOb.getMonth()-3),1,5,29,0,0).toISOString()
       } else if(pvalue == 6){
-          afterDate = new Date(dateOb.getFullYear(),(dateOb.getMonth()-6),dateOb.getDate(),dateOb.getHours(),dateOb.getMinutes(),dateOb.getSeconds(),dateOb.getMilliseconds()).toISOString()
+          afterDate = new Date(dateOb.getFullYear(),(dateOb.getMonth()-6),1,5,29,0,0).toISOString()
       }
     } else if(ptype == "year"){
           afterDate = new Date((dateOb.getFullYear()-1),11,31,28,89,59,59).toISOString()
