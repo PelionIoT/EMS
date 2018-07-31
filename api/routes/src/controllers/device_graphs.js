@@ -31,7 +31,7 @@ let getDeviceGraphs = (req, res) => {
         } else if(pValue == "2D"){
             afterTime = getAfterDate(currentTime,"day",2)
             EMS_Raw.getEMS_RawData(req, "asc", currentTime, afterTime).then(function(raw_data){
-                var result = getDataOfDays(deviceID,raw_data,2)
+                var result = getDataOfHours(deviceID,raw_data,48)
                 res.status(200).send(result);
             },function(error){
                 console.log(error)
@@ -48,6 +48,14 @@ let getDeviceGraphs = (req, res) => {
             afterTime = getAfterDate(currentTime,"week",1)
             EMS_Raw.getEMS_RawData(req, "asc", currentTime, afterTime).then((raw_data) => {
                 var result = getDataOfDays(deviceID,raw_data,7,currentTime,afterTime)
+                res.status(200).send(result);
+            }, (err) => {
+                console.log("Failed: ", err.statusCode ? (err.statusCode + " --> " + err.statusMessage) : err)
+            })
+        } else if(pValue == "2W"){
+            afterTime = getAfterDate(currentTime,"week",2)
+            EMS_Raw.getEMS_RawData(req, "asc", currentTime, afterTime).then((raw_data) => {
+                var result = getDataOfDays(deviceID,raw_data,14,currentTime,afterTime)
                 res.status(200).send(result);
             }, (err) => {
                 console.log("Failed: ", err.statusCode ? (err.statusCode + " --> " + err.statusMessage) : err)
@@ -206,31 +214,36 @@ let getDataOfDays = (deviceID,raw_data,dayCount,beforeTime,afterTime) => {
     }
 
     // Go through each day in a month
-    var day = new Date();
+    var beforeTime;
+    var lastState;
     for(var a=0; a<dayCount; a++) {
-        if(a > 0)   day.setDate(day.getDate()-1)
+        day = new Date(afterTime);
         var date = day.getDate()
         var month = day.getMonth()
         var year = day.getFullYear()
-        var totalHours = 24;
+        beforeTime = new Date(day.setDate(day.getDate()+1))
 
+        var totalHours = 24;
         var totalONhours=0;
         var totalOFFhours=0;
         
         dayLogs[deviceID].state.power.on.x_days.push(date+' '+getMonthName(month)+' '+year);
         dayLogs[deviceID].state.power.off.x_days.push(date+' '+getMonthName(month)+' '+year);
         
-        for(var i=0;i<eventValue.length;i++){
+        for(var i=0;i<eventValue.length;i++) {
             var fetchedTime = new Date(eventTimestamp[i])
             if(fetchedTime.getDate() == date && 
                   fetchedTime.getMonth() == month && 
-                  fetchedTime.getFullYear() == year){
-               if(eventValue[i] == 'on'){
-                if(eventTimestamp[i+1] != null){
-                    totalONhours += eventTimestamp[i+1] - eventTimestamp[i];
+                  fetchedTime.getFullYear() == year) {
+                if(totalONhours == 0 && lastState == 'on')  totalONhours = eventTimestamp[i]-afterTime;
+                if(eventValue[i] == 'on') {
+                    if(eventTimestamp[i+1] != null && eventTimestamp[i+1] < beforeTime) {
+                        totalONhours += eventTimestamp[i+1] - eventTimestamp[i];
+                    } else {
+                        totalONhours += beforeTime - eventTimestamp[i];
+                        lastState = eventValue[i];
+                    }
                 }
-                  totalONhours += 0; 
-               }
             }
         }
 
@@ -245,6 +258,7 @@ let getDataOfDays = (deviceID,raw_data,dayCount,beforeTime,afterTime) => {
             dayLogs[deviceID].state.power.on.y_hours.push(0);
             dayLogs[deviceID].state.power.off.y_hours.push(0);
         }
+        afterTime = beforeTime
     }
     return dayLogs;
 }
