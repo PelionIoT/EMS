@@ -304,7 +304,7 @@ let getDataOfMonths = (deviceID,raw_data,beforeTime,afterTime) => {
         //console.log(startMonth)
 
         monthLogs[deviceID].state.power.on.x_months.push(getMonthName(startMonth)+ ' ' + year);
-        monthLogs[deviceID].state.power.off.x_months.push(getMonthName(startMonth) );
+        monthLogs[deviceID].state.power.off.x_months.push(getMonthName(startMonth)+ ' '+ year );
         //console.log(monthLogs[deviceID].state.power)
         //console.log(getMonthName(startMonth))
         for(var i=0;i<eventValue.length;i++){
