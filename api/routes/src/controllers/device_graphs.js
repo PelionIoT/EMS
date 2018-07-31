@@ -174,7 +174,7 @@ let getDataOfHours = (deviceID,raw_data,hoursCount) => {
                 fetchedTime.getDate() == date &&
                 fetchedTime.getMonth() == month &&
                 fetchedTime.getFullYear() == year){
-                if(eventValue[i] == 'on'){
+                if(eventValue[i+1] != null && eventValue[i] == 'on'){
                     totalONhours += eventTimestamp[i+1] - eventTimestamp[i];
                 }
             }
