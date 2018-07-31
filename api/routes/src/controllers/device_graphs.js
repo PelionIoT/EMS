@@ -52,6 +52,15 @@ let getDeviceGraphs = (req, res) => {
             }, (err) => {
                 console.log("Failed: ", err.statusCode ? (err.statusCode + " --> " + err.statusMessage) : err)
             })
+        }
+        else if(pValue == "2W"){
+            afterTime = getAfterDate(currentTime,"week",2)
+            EMS_Raw.getEMS_RawData(req, "asc", currentTime, afterTime).then((raw_data) => {
+                var result = getDataOfDays(deviceID,raw_data,14,currentTime,afterTime)
+                res.status(200).send(result);
+            }, (err) => {
+                console.log("Failed: ", err.statusCode ? (err.statusCode + " --> " + err.statusMessage) : err)
+            })
         } else {
             res.status(500).send("Request Failed: Invalid parameters")
         }
@@ -96,15 +105,17 @@ let getDeviceGraphs = (req, res) => {
     }
     else if(pType != undefined && pType == "Year")
     {
+        console.log(currentTime)
         // Get last date of current year for beforeTime & last date of last year for afterTime
         var dateOb = new Date(currentTime)
         var beforeTime = new Date((dateOb.getFullYear()+1),0,1,5,0,0,0).toISOString()
         var afterTime = getAfterDate(currentTime,"year")
         //console.log("Before Date: " + beforeTime + " After Date: " + afterTime)
        
-        EMS_Raw.getEMS_RawData(req, "asc", beforeTime, afterTime).then(function(raw_data){
+        EMS_Raw.getEMS_RawData(req, "asc", currentTime, afterTime).then(function(raw_data){
             // Raw data returned by the devicelogs API
             //console.log(raw_data);
+            //res.status(200).send(raw_data)
             var result = getDataOfAYear(deviceID, raw_data,currentTime,afterTime);
             //console.log(getDataOfAYear(deviceID, raw_data, pValue));
             res.status(200).send(result);
@@ -253,6 +264,7 @@ let getDataOfMonths = (deviceID,raw_data,beforeTime,afterTime) => {
 
     var startMonth = new Date(afterTime).getMonth()
     var endMonth = new Date(beforeTime).getMonth()
+    var year = new Date().getFullYear();
 
     var eventValue = raw_data[deviceID].state.power.value;
     var eventTimestamp = raw_data[deviceID].state.power.timestamp;
@@ -273,29 +285,35 @@ let getDataOfMonths = (deviceID,raw_data,beforeTime,afterTime) => {
            }
         }
     }
-
-    // Go through each month
-    for(var month=startMonth; month<endMonth; month++) {
-        var year = new Date().getFullYear();
-        var totalDays = getTotalDaysInMonth(month,year);
+    for(var j = 0; j < 11; j++) {
+        if(startMonth == 0){
+            var totalDays = getTotalDaysInMonth(startMonth,year);
+            var totalHours = totalDays * 24;
+            monthLogs[deviceID].state.power.on.x_months.push(getMonthName(startMonth) + ' ' + year);
+            monthLogs[deviceID].state.power.off.x_months.push(getMonthName(startMonth) + ' ' + year)
+            year = new Date().getFullYear() - 1;
+            startMonth = 11
+        }
+        var totalDays = getTotalDaysInMonth(startMonth,year);
         var totalHours = totalDays * 24;
 
-        //console.log("Month: " + (month+1) + " Total Days: " + totalDays + " Total Hours: " + totalHours);
 
         var totalONhours=0;
         var totalOFFhours=0;
         var isTimestampExists = false;
+        //console.log(startMonth)
 
-        //console.log("Current Month: " + (month+1));
-        monthLogs[deviceID].state.power.on.x_months.push(getMonthName(month));
-        monthLogs[deviceID].state.power.off.x_months.push(getMonthName(month));
-        
+        monthLogs[deviceID].state.power.on.x_months.push(getMonthName(startMonth) + ' ' + year);
+        monthLogs[deviceID].state.power.off.x_months.push(getMonthName(startMonth) + ' ' + year);
+        //console.log(monthLogs[deviceID].state.power)
+        //console.log(getMonthName(startMonth))
         for(var i=0;i<eventValue.length;i++){
             var fetchedTime = new Date(eventTimestamp[i])
-            if(fetchedTime.getMonth() == month){
+            if(fetchedTime.getMonth() == startMonth && fetchedTime.getFullYear() == year){
                if(eventValue[i] == 'on' && (eventValue[i+1] == 'off' || eventValue[i+1] == 'on')){
                   //console.log("Extracted Timestamps: " + (eventTimestamp[i+1] - eventTimestamp[i]));
                   totalONhours += eventTimestamp[i+1] - eventTimestamp[i]; 
+                  //startMonth--
                }
                //console.log("All Timestamps: " + eventTimestamp[i]);
                //isTimestampExists = true;
@@ -323,9 +341,11 @@ let getDataOfMonths = (deviceID,raw_data,beforeTime,afterTime) => {
             totalOFFhours = totalHours - totalONhours;
             monthLogs[deviceID].state.power.off.y_hours.push(totalOFFhours);
         }
+        startMonth--
     }
-    //console.log(monthLogs);
+    //console.log(monthLogs[deviceID].state.power.on.x_months)
     return monthLogs;
+    
 }
 
 let getDataOfAYear = (deviceID,raw_data,beforeTime,afterTime) => {
@@ -365,7 +385,7 @@ function getAfterDate(beforeTime,ptype,pvalue){
           afterDate = new Date(dateOb.getFullYear(),(dateOb.getMonth()-6),1,5,29,0,0).toISOString()
       }
     } else if(ptype == "year"){
-          afterDate = new Date((dateOb.getFullYear()-1),11,31,28,89,59,59).toISOString()
+          afterDate = new Date((dateOb.getFullYear()-1),dateOb.getMonth(),(dateOb.getDate()),dateOb.getHours(),dateOb.getMinutes(),dateOb.getSeconds(),dateOb.getMilliseconds()).toISOString()
     }
     return afterDate
 }
