@@ -229,13 +229,16 @@ let getDataOfDays = (deviceID,raw_data,dayCount,beforeTime,afterTime) => {
         
         dayLogs[deviceID].state.power.on.x_days.push(date+' '+getMonthName(month)+' '+year);
         dayLogs[deviceID].state.power.off.x_days.push(date+' '+getMonthName(month)+' '+year);
-        
+        flag = false;
         for(var i=0;i<eventValue.length;i++) {
             var fetchedTime = new Date(eventTimestamp[i])
             if(fetchedTime.getDate() == date && 
                   fetchedTime.getMonth() == month && 
                   fetchedTime.getFullYear() == year) {
-                if(totalONhours == 0 && lastState == 'on')  totalONhours = eventTimestamp[i]-afterTime;
+                if(!flag && lastState == 'on') {
+                    totalONhours = eventTimestamp[i]-afterTime;
+                }
+                flag = true;
                 if(eventValue[i] == 'on') {
                     if(eventTimestamp[i+1] != null && eventTimestamp[i+1] < beforeTime) {
                         totalONhours += eventTimestamp[i+1] - eventTimestamp[i];
