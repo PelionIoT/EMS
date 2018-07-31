@@ -47,7 +47,7 @@ let getDeviceGraphs = (req, res) => {
         if(pValue == "1W"){
             afterTime = getAfterDate(currentTime,"week",1)
             EMS_Raw.getEMS_RawData(req, "asc", currentTime, afterTime).then((raw_data) => {
-                var result = getDataOfDays(deviceID,raw_data,7)
+                var result = getDataOfDays(deviceID,raw_data,7,currentTime,afterTime)
                 res.status(200).send(result);
             }, (err) => {
                 console.log("Failed: ", err.statusCode ? (err.statusCode + " --> " + err.statusMessage) : err)
@@ -64,7 +64,7 @@ let getDeviceGraphs = (req, res) => {
             //console.log("Before Date: " + currentTime + " After Date: " + afterTime)
             EMS_Raw.getEMS_RawData(req, "asc", currentTime, afterTime).then((raw_data) => {
                 var dayCount = getTotalDaysInMonth(new Date().getMonth(),new Date().getFullYear());
-                var result = getDataOfDays(deviceID,raw_data,dayCount)
+                var result = getDataOfDays(deviceID,raw_data,dayCount,currentTime,afterTime)
                 res.status(200).send(result);
             }, (err) => {
                 console.log("Failed: ", err.statusCode ? (err.statusCode + " --> " + err.statusMessage) : err)
@@ -73,9 +73,7 @@ let getDeviceGraphs = (req, res) => {
             afterTime = getAfterDate(currentTime,"month",3)
             //console.log("Before Date: " + currentTime + " After Date: " + afterTime)
             EMS_Raw.getEMS_RawData(req, "asc", currentTime, afterTime).then(function(raw_data){
-                var startMonth = new Date(afterTime).getMonth()
-                var endMonth = new Date(currentTime).getMonth()
-                var result = getDataOfMonths(deviceID,raw_data,startMonth,endMonth)
+                var result = getDataOfMonths(deviceID,raw_data,currentTime,afterTime)
                 res.status(200).send(result);
             },function(error){
                 console.log(error)
@@ -85,9 +83,7 @@ let getDeviceGraphs = (req, res) => {
             afterTime = getAfterDate(currentTime,"month",6)
             //console.log("Before Date: " + currentTime + " After Date: " + afterTime)
             EMS_Raw.getEMS_RawData(req, "asc", currentTime, afterTime).then(function(raw_data){
-                var startMonth = new Date(afterTime).getMonth()
-                var endMonth = new Date(currentTime).getMonth()
-                var result = getDataOfMonths(deviceID,raw_data,startMonth,endMonth)
+                var result = getDataOfMonths(deviceID,raw_data,currentTime,afterTime)
                 res.status(200).send(result);
             },function(error){
                 console.log(error)
@@ -109,7 +105,7 @@ let getDeviceGraphs = (req, res) => {
         EMS_Raw.getEMS_RawData(req, "asc", beforeTime, afterTime).then(function(raw_data){
             // Raw data returned by the devicelogs API
             //console.log(raw_data);
-            var result = getDataOfAYear(deviceID, raw_data);
+            var result = getDataOfAYear(deviceID, raw_data,currentTime,afterTime);
             //console.log(getDataOfAYear(deviceID, raw_data, pValue));
             res.status(200).send(result);
         }, function(error){
@@ -188,7 +184,7 @@ let getDataOfHours = (deviceID,raw_data,hoursCount) => {
     return dayLogs;
 }
 
-let getDataOfDays = (deviceID,raw_data,dayCount) => {
+let getDataOfDays = (deviceID,raw_data,dayCount,beforeTime,afterTime) => {
     var eventValue = raw_data[deviceID].state.power.value;
     var eventTimestamp = raw_data[deviceID].state.power.timestamp;
 
@@ -253,7 +249,11 @@ let getDataOfDays = (deviceID,raw_data,dayCount) => {
     return dayLogs;
 }
 
-let getDataOfMonths = (deviceID,raw_data,startMonth,endMonth) => {
+let getDataOfMonths = (deviceID,raw_data,beforeTime,afterTime) => {
+
+    var startMonth = new Date(afterTime).getMonth()
+    var endMonth = new Date(beforeTime).getMonth()
+
     var eventValue = raw_data[deviceID].state.power.value;
     var eventTimestamp = raw_data[deviceID].state.power.timestamp;
 
@@ -328,8 +328,8 @@ let getDataOfMonths = (deviceID,raw_data,startMonth,endMonth) => {
     return monthLogs;
 }
 
-let getDataOfAYear = (deviceID,raw_data) => {
-    return getDataOfMonths(deviceID,raw_data,0,12)
+let getDataOfAYear = (deviceID,raw_data,beforeTime,afterTime) => {
+    return getDataOfMonths(deviceID,raw_data,beforeTime,afterTime)
 }
 
 function getTotalDaysInMonth (month,year) {
