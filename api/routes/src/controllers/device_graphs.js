@@ -105,7 +105,7 @@ let getDeviceGraphs = (req, res) => {
     }
     else if(pType != undefined && pType == "Year")
     {
-        console.log(currentTime)
+        //console.log(currentTime)
         // Get last date of current year for beforeTime & last date of last year for afterTime
         var dateOb = new Date(currentTime)
         var beforeTime = new Date((dateOb.getFullYear()+1),0,1,5,0,0,0).toISOString()
@@ -285,12 +285,8 @@ let getDataOfMonths = (deviceID,raw_data,beforeTime,afterTime) => {
            }
         }
     }
-    for(var j = 0; j < 11; j++) {
-        if(startMonth == 0){
-            var totalDays = getTotalDaysInMonth(startMonth,year);
-            var totalHours = totalDays * 24;
-            monthLogs[deviceID].state.power.on.x_months.push(getMonthName(startMonth) + ' ' + year);
-            monthLogs[deviceID].state.power.off.x_months.push(getMonthName(startMonth) + ' ' + year)
+    for(var j = 0; j < 12; j++) {
+        if(startMonth == -1){
             year = new Date().getFullYear() - 1;
             startMonth = 11
         }
