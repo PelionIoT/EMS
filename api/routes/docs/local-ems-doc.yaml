@@ -2,7 +2,7 @@
 swagger: '2.0'
 info:
   version: 0.0.1
-  title: EMC (enterprise-monitoring-console)
+  title: EMS (energy-managment-system)
   description: UI backend server for site monitoring
 schemes:
 - http
@@ -10,7 +10,7 @@ consumes:
 - application/json
 produces:
 - application/json
-basePath: "/enterprise-monitoring-console"
+basePath: "/ems"
 securityDefinitions:
   Bearer:
     type: apiKey
@@ -30,26 +30,24 @@ security:
 - Bearer: []
 - CloudURL: []
 tags:
-  - name: Devices
-    description: Endpoints to read/write device specifics within a site
   - name: Sites
     description: Endpoints to access sites specifics
 paths:
-  "/relayLocation":
+  "/accounts/:accountID/sites/:siteID/:relayID/ems/raw_data":
     get:
       description: 'Get location of Each relay in the account'
       tags:
-        - Relay
+        - Rew Data
       responses:
         '200':
           description: Success
         '500':
           description: Internal server error
-  "/siteData":
+  "/accounts/:accountID/sites/:siteID/:relayID/ems/device_graphs":
     get:
       description: 'Get site diagnostic data'
       tags:
-        - Sites
+        - Device graph
       responses:
         '200':
           description: Success

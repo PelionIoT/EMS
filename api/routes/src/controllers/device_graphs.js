@@ -70,8 +70,10 @@ let getDeviceGraphs = (req, res) => {
         var afterTime;
         if(pValue == "1M"){
             afterTime = getAfterDate(currentTime,"month",1)
+            console.log(currentTime +" "+ afterTime)
             //console.log("Before Date: " + currentTime + " After Date: " + afterTime)
             EMS_Raw.getEMS_RawData(req, "asc", currentTime, afterTime).then((raw_data) => {
+                //console.log("raw data " + JSON.stringify(raw_data, null, 4))
                 var dayCount = getTotalDaysInMonth(new Date().getMonth(),new Date().getFullYear());
                 var result = getDataOfDays(deviceID,raw_data,dayCount,currentTime,afterTime)
                 res.status(200).send(result);
@@ -200,7 +202,7 @@ let getDataOfHours = (deviceID,raw_data,hoursCount) => {
 let getDataOfDays = (deviceID,raw_data,dayCount,beforeTime,afterTime) => {
     var eventValue = raw_data[deviceID].state.power.value;
     var eventTimestamp = raw_data[deviceID].state.power.timestamp;
-
+    //console.log(eventValue +" with "+ eventTimestamp)
     var dayLogs = {
         [deviceID] : {
             state : {
@@ -230,8 +232,8 @@ let getDataOfDays = (deviceID,raw_data,dayCount,beforeTime,afterTime) => {
         var totalONhours=0;
         var totalOFFhours=0;
         
-        dayLogs[deviceID].state.power.on.x_days.push(date+' '+getMonthName(month)+' '+year);
-        dayLogs[deviceID].state.power.off.x_days.push(date+' '+getMonthName(month)+' '+year);
+        dayLogs[deviceID].state.power.on.x_days.push(date+' '+getMonthName(month));
+        dayLogs[deviceID].state.power.off.x_days.push(date+' '+getMonthName(month));
         
         for(var i=0;i<eventValue.length;i++){
             var fetchedTime = new Date(eventTimestamp[i])
@@ -259,6 +261,10 @@ let getDataOfDays = (deviceID,raw_data,dayCount,beforeTime,afterTime) => {
             dayLogs[deviceID].state.power.off.y_hours.push(0);
         }
     }
+    dayLogs[deviceID].state.power.on.x_days.reverse()
+    dayLogs[deviceID].state.power.on.y_hours.reverse()
+    dayLogs[deviceID].state.power.off.x_days.reverse()
+    dayLogs[deviceID].state.power.off.y_hours.reverse()
     return dayLogs;
 }
 
@@ -287,7 +293,7 @@ let getDataOfMonths = (deviceID,raw_data,beforeTime,afterTime) => {
            }
         }
     }
-var MD = monthDiff(new Date(afterTime),new Date(beforeTime))
+    var MD = monthDiff(new Date(afterTime),new Date(beforeTime))
     //console.log(monthDiff)
     for(var j = 0; j < MD+1; j++) {
         if(startMonth == -1){
@@ -390,7 +396,7 @@ function getAfterDate(beforeTime,ptype,pvalue){
         }
     } else if(ptype == "month"){
       if(pvalue == 1){
-          afterDate = new Date(dateOb.getFullYear(),(dateOb.getMonth()),1,5,29,0,0).toISOString()
+          afterDate = new Date(dateOb.getFullYear(),(dateOb.getMonth()-1),1,5,29,0,0).toISOString()
       } else if(pvalue == 3){
           afterDate = new Date(dateOb.getFullYear(),(dateOb.getMonth()-3),1,5,29,0,0).toISOString()
       } else if(pvalue == 6){
