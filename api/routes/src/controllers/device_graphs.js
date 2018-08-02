@@ -83,6 +83,7 @@ let getDeviceGraphs = (req, res) => {
             //console.log("Before Date: " + currentTime + " After Date: " + afterTime)
             EMS_Raw.getEMS_RawData(req, "asc", currentTime, afterTime).then(function(raw_data){
                 var result = getDataOfMonths(deviceID,raw_data,currentTime,afterTime)
+                console.log(currentTime)
                 res.status(200).send(result);
             },function(error){
                 console.log(error)
@@ -93,6 +94,7 @@ let getDeviceGraphs = (req, res) => {
             //console.log("Before Date: " + currentTime + " After Date: " + afterTime)
             EMS_Raw.getEMS_RawData(req, "asc", currentTime, afterTime).then(function(raw_data){
                 var result = getDataOfMonths(deviceID,raw_data,currentTime,afterTime)
+                console.log(currentTime)
                 res.status(200).send(result);
             },function(error){
                 console.log(error)
@@ -262,8 +264,8 @@ let getDataOfDays = (deviceID,raw_data,dayCount,beforeTime,afterTime) => {
 
 let getDataOfMonths = (deviceID,raw_data,beforeTime,afterTime) => {
 
-    var startMonth = new Date(afterTime).getMonth()
-    var endMonth = new Date(beforeTime).getMonth()
+    var startMonth = new Date(beforeTime).getMonth()
+    var endMonth = new Date(afterTime).getMonth()
     var year = new Date().getFullYear();
 
     var eventValue = raw_data[deviceID].state.power.value;
@@ -285,7 +287,9 @@ let getDataOfMonths = (deviceID,raw_data,beforeTime,afterTime) => {
            }
         }
     }
-    for(var j = 0; j < 12; j++) {
+var MD = monthDiff(new Date(afterTime),new Date(beforeTime))
+    //console.log(monthDiff)
+    for(var j = 0; j < MD+1; j++) {
         if(startMonth == -1){
             year = new Date().getFullYear() - 1;
             startMonth = 11
@@ -317,7 +321,6 @@ let getDataOfMonths = (deviceID,raw_data,beforeTime,afterTime) => {
                //isTimestampExists = false; 
             }
         }
-
         if(totalONhours != 0){
             isTimestampExists = true
         } else {
@@ -360,6 +363,15 @@ function getMonthName(monthNumber){
    var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
    return months[monthNumber];
 }
+
+function monthDiff(d1, d2) {
+    var months;
+    months = (d2.getFullYear() - d1.getFullYear()) * 12;
+    months -= d1.getMonth() + 1;
+    months += d2.getMonth();
+    return months <= 0 ? 0 : months;
+}
+
 
 function getAfterDate(beforeTime,ptype,pvalue){
     var dateOb = new Date(beforeTime);
