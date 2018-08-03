@@ -70,12 +70,9 @@ let getDeviceGraphs = (req, res) => {
         var afterTime;
         if(pValue == "1M"){
             afterTime = getAfterDate(currentTime,"month",1)
-            console.log(currentTime +" "+ afterTime)
             //console.log("Before Date: " + currentTime + " After Date: " + afterTime)
             EMS_Raw.getEMS_RawData(req, "asc", currentTime, afterTime).then((raw_data) => {
-                //console.log("raw data " + JSON.stringify(raw_data, null, 4))
-                var dayCount = getTotalDaysInMonth(new Date().getMonth(),new Date().getFullYear());
-                var result = getDataOfDays(deviceID,raw_data,dayCount,currentTime,afterTime)
+                var result = getDataOfDays(deviceID,raw_data,30,currentTime,afterTime)
                 res.status(200).send(result);
             }, (err) => {
                 console.log("Failed: ", err.statusCode ? (err.statusCode + " --> " + err.statusMessage) : err)
@@ -390,20 +387,20 @@ function getAfterDate(beforeTime,ptype,pvalue){
         }
     } else if(ptype == "week"){
         if(pvalue == 1){
-            afterDate = new Date(dateOb.getFullYear(),dateOb.getMonth(),(dateOb.getDate()-7),dateOb.getHours(),dateOb.getMinutes(),dateOb.getSeconds(),dateOb.getMilliseconds()).toISOString()
+            afterDate = new Date(dateOb.getFullYear(),dateOb.getMonth(),(dateOb.getDate()-6)).toISOString()
         } else if(pvalue == 2){
-            afterDate = new Date(dateOb.getFullYear(),dateOb.getMonth(),(dateOb.getDate()-14),dateOb.getHours(),dateOb.getMinutes(),dateOb.getSeconds(),dateOb.getMilliseconds()).toISOString()
+            afterDate = new Date(dateOb.getFullYear(),dateOb.getMonth(),(dateOb.getDate()-13)).toISOString()
         }
     } else if(ptype == "month"){
       if(pvalue == 1){
-          afterDate = new Date(dateOb.getFullYear(),(dateOb.getMonth()-1),1,5,29,0,0).toISOString()
+          afterDate = new Date(dateOb.getFullYear(),dateOb.getMonth(), dateOb.getDate()-29).toISOString()
       } else if(pvalue == 3){
-          afterDate = new Date(dateOb.getFullYear(),(dateOb.getMonth()-3),1,5,29,0,0).toISOString()
+          afterDate = new Date(dateOb.getFullYear(),dateOb.getMonth()-3).toISOString()
       } else if(pvalue == 6){
-          afterDate = new Date(dateOb.getFullYear(),(dateOb.getMonth()-6),1,5,29,0,0).toISOString()
+          afterDate = new Date(dateOb.getFullYear(), dateOb.getMonth()-6).toISOString()
       }
     } else if(ptype == "year"){
-          afterDate = new Date((dateOb.getFullYear()-1),dateOb.getMonth(),(dateOb.getDate()),dateOb.getHours(),dateOb.getMinutes(),dateOb.getSeconds(),dateOb.getMilliseconds()).toISOString()
+          afterDate = new Date((dateOb.getFullYear()-1),dateOb.getMonth()).toISOString()
     }
     return afterDate
 }
