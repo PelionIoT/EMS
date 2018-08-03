@@ -229,37 +229,36 @@ let getDataOfDays = (deviceID,raw_data,dayCount,beforeTime,afterTime) => {
         var date = day.getDate()
         var totalHours = 24;
 
-        var totalONhours=0;
-        var totalOFFhours=0;
+        var data= {
+            on: 0,
+            off: 0
+        }
         
         dayLogs[deviceID].state.power.on.x_days.push(date+' '+getMonthName(day.getMonth()));
         dayLogs[deviceID].state.power.off.x_days.push(date+' '+getMonthName(day.getMonth()));
 
-        if(lastState == 'on') {//add carry over duration
-            totalONhours += fetchedTime - day;
+        if(lastState != undefined) {//add carry over duration
+            data[lastState] += fetchedTime - day;
         }
 
         for(; i<eventValue.length && fetchedTime<nextday; i++){
-            if(eventValue[i] == 'on'){
-                totalONhours += eventTimestamp[i+1] - eventTimestamp[i];
-            }
+            data[eventValue[i]] += eventTimestamp[i+1] - eventTimestamp[i];
             lastState=eventValue[i]
             fetchedTime = new Date(eventTimestamp[i+1])
         }
-        if(lastState == 'on'){ //fetchedTime will be in next day, so subtract extra duration
-            if(nextday < fetchedTime) totalONhours -= fetchedTime - nextday;
-        }
+        //fetchedTime will be in next day, so subtract extra duration
+        if(nextday < fetchedTime) data[lastState] -= fetchedTime - nextday;
 
-        if(totalONhours != 0){
-            totalONhours = totalONhours/3600000;
-            dayLogs[deviceID].state.power.on.y_hours.push(totalONhours);
+        // if(totalONhours != 0){
+        //     totalONhours = totalONhours/3600000;
+            dayLogs[deviceID].state.power.on.y_hours.push(data.on/3600000);
             // Calculate Total OFF Hours
-            totalOFFhours = totalHours - totalONhours;
-            dayLogs[deviceID].state.power.off.y_hours.push(totalOFFhours);
-        } else {
-            dayLogs[deviceID].state.power.on.y_hours.push(0);
-            dayLogs[deviceID].state.power.off.y_hours.push(0);
-        }
+            // totalOFFhours = totalHours - totalONhours;
+            dayLogs[deviceID].state.power.off.y_hours.push(data.off/3600000);
+        // } else {
+        //     dayLogs[deviceID].state.power.on.y_hours.push(0);
+        //     dayLogs[deviceID].state.power.off.y_hours.push(0);
+        // }
     }
     return dayLogs;
 }
