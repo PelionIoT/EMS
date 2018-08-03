@@ -199,7 +199,9 @@ let getDataOfHours = (deviceID,raw_data,hoursCount) => {
 let getDataOfDays = (deviceID,raw_data,dayCount,beforeTime,afterTime) => {
     var eventValue = raw_data[deviceID].state.power.value;
     var eventTimestamp = raw_data[deviceID].state.power.timestamp;
-    //console.log(eventValue +" with "+ eventTimestamp)
+    //the currentTime can be used for last duration calc
+    eventTimestamp.push(new Date(beforeTime).getTime());
+
     var dayLogs = {
         [deviceID] : {
             state : {
@@ -218,37 +220,38 @@ let getDataOfDays = (deviceID,raw_data,dayCount,beforeTime,afterTime) => {
     }
 
     // Go through each day in a month
-    var day = new Date();
-    for(var a=0; a<dayCount; a++) {
-        if(a > 0)   day.setDate(day.getDate()-1)
+    var day = new Date(afterTime);
+    var nextday = new Date(afterTime);
+    var lastState; //stores the last state of previous day to calc carry over duration for current day
+    for(var a=0,i=0,fetchedTime = new Date(eventTimestamp[i]); a<dayCount; a++) {
+        if(a>0) day.setDate(day.getDate()+1);
+        nextday.setDate(nextday.getDate()+1);
         var date = day.getDate()
-        var month = day.getMonth()
-        var year = day.getFullYear()
         var totalHours = 24;
 
         var totalONhours=0;
         var totalOFFhours=0;
         
-        dayLogs[deviceID].state.power.on.x_days.push(date+' '+getMonthName(month));
-        dayLogs[deviceID].state.power.off.x_days.push(date+' '+getMonthName(month));
-        
-        for(var i=0;i<eventValue.length;i++){
-            var fetchedTime = new Date(eventTimestamp[i])
-            if(fetchedTime.getDate() == date && 
-                  fetchedTime.getMonth() == month && 
-                  fetchedTime.getFullYear() == year){
-               if(eventValue[i] == 'on'){
-                if(eventTimestamp[i+1] != null){
-                    totalONhours += eventTimestamp[i+1] - eventTimestamp[i];
-                }
-                  totalONhours += 0; 
-               }
+        dayLogs[deviceID].state.power.on.x_days.push(date+' '+getMonthName(day.getMonth()));
+        dayLogs[deviceID].state.power.off.x_days.push(date+' '+getMonthName(day.getMonth()));
+
+        if(lastState == 'on') {//add carry over duration
+            totalONhours += fetchedTime - day;
+        }
+
+        for(; i<eventValue.length && fetchedTime<nextday; i++){
+            if(eventValue[i] == 'on'){
+                totalONhours += eventTimestamp[i+1] - eventTimestamp[i];
             }
+            lastState=eventValue[i]
+            fetchedTime = new Date(eventTimestamp[i+1])
+        }
+        if(lastState == 'on'){ //fetchedTime will be in next day, so subtract extra duration
+            if(nextday < fetchedTime) totalONhours -= fetchedTime - nextday;
         }
 
         if(totalONhours != 0){
-            totalONhours = totalONhours/36000000;
-            //totalONhours = totalONhours/36e5;
+            totalONhours = totalONhours/3600000;
             dayLogs[deviceID].state.power.on.y_hours.push(totalONhours);
             // Calculate Total OFF Hours
             totalOFFhours = totalHours - totalONhours;
@@ -258,10 +261,6 @@ let getDataOfDays = (deviceID,raw_data,dayCount,beforeTime,afterTime) => {
             dayLogs[deviceID].state.power.off.y_hours.push(0);
         }
     }
-    dayLogs[deviceID].state.power.on.x_days.reverse()
-    dayLogs[deviceID].state.power.on.y_hours.reverse()
-    dayLogs[deviceID].state.power.off.x_days.reverse()
-    dayLogs[deviceID].state.power.off.y_hours.reverse()
     return dayLogs;
 }
 
