@@ -203,6 +203,11 @@ let getDataOfDays = (deviceID,raw_data,dayCount,beforeTime,afterTime) => {
     var eventValue = raw_data[deviceID].state.power.value;
     var eventTimestamp = raw_data[deviceID].state.power.timestamp;
     //console.log(eventValue +" with "+ eventTimestamp)
+
+    for(var aa =0; aa<eventValue.length;aa++){
+        console.log(eventTimestamp[aa]+"  :  "+eventValue[aa])
+    }
+
     var dayLogs = {
         [deviceID] : {
             state : {
