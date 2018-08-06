@@ -70,12 +70,9 @@ let getDeviceGraphs = (req, res) => {
         var afterTime;
         if(pValue == "1M"){
             afterTime = getAfterDate(currentTime,"month",1)
-            console.log(currentTime +" "+ afterTime)
             //console.log("Before Date: " + currentTime + " After Date: " + afterTime)
             EMS_Raw.getEMS_RawData(req, "asc", currentTime, afterTime).then((raw_data) => {
-                //console.log("raw data " + JSON.stringify(raw_data, null, 4))
-                var dayCount = getTotalDaysInMonth(new Date().getMonth(),new Date().getFullYear());
-                var result = getDataOfDays(deviceID,raw_data,dayCount,currentTime,afterTime)
+                var result = getDataOfDays(deviceID,raw_data,30,currentTime,afterTime)
                 res.status(200).send(result);
             }, (err) => {
                 console.log("Failed: ", err.statusCode ? (err.statusCode + " --> " + err.statusMessage) : err)
@@ -202,12 +199,12 @@ let getDataOfHours = (deviceID,raw_data,hoursCount) => {
 let getDataOfDays = (deviceID,raw_data,dayCount,beforeTime,afterTime) => {
     var eventValue = raw_data[deviceID].state.power.value;
     var eventTimestamp = raw_data[deviceID].state.power.timestamp;
-    //console.log(eventValue +" with "+ eventTimestamp)
 
     for(var aa =0; aa<eventValue.length;aa++){
         console.log(eventTimestamp[aa]+"  :  "+eventValue[aa])
     }
-
+    //the currentTime can be used for last duration calc
+    eventTimestamp.push(new Date(beforeTime).getTime());
     var dayLogs = {
         [deviceID] : {
             state : {
@@ -226,63 +223,56 @@ let getDataOfDays = (deviceID,raw_data,dayCount,beforeTime,afterTime) => {
     }
 
     // Go through each day in a month
-    var day = new Date();
-    for(var a=0; a<dayCount; a++) {
-        if(a > 0)   day.setDate(day.getDate()-1)
+    var day = new Date(afterTime);
+    var nextday = new Date(afterTime);
+    var lastState; //stores the last state of previous day to calc carry over duration for current day
+    for(var a=0,i=0,fetchedTime = new Date(eventTimestamp[i]); a<dayCount; a++) {
+        if(a>0) day.setDate(day.getDate()+1);
+        nextday.setDate(nextday.getDate()+1);
         var date = day.getDate()
-        var month = day.getMonth()
-        var year = day.getFullYear()
         var totalHours = 24;
 
-        var totalONhours=0;
-        var totalOFFhours=0;
+        var data= {
+            on: 0,
+            off: 0
+        }
         
-        dayLogs[deviceID].state.power.on.x_days.push(date+' '+getMonthName(month));
-        dayLogs[deviceID].state.power.off.x_days.push(date+' '+getMonthName(month));
-        
-        for(var i=0;i<eventValue.length;i++){
-            var fetchedTime = new Date(eventTimestamp[i])
-            if(fetchedTime.getDate() == date && 
-                  fetchedTime.getMonth() == month && 
-                  fetchedTime.getFullYear() == year){
-               if(eventValue[i] == 'on'){
-                if(eventTimestamp[i+1] != null){
-                    totalONhours += eventTimestamp[i+1] - eventTimestamp[i];
-                }
-                  totalONhours += 0; 
-               }
-            }
+        dayLogs[deviceID].state.power.on.x_days.push(date+' '+getMonthName(day.getMonth()));
+        dayLogs[deviceID].state.power.off.x_days.push(date+' '+getMonthName(day.getMonth()));
+
+        if(lastState != undefined) {//add carry over duration
+            data[lastState] += fetchedTime - day;
         }
 
-        if(totalONhours != 0){
-            totalONhours = totalONhours/36000000;
-            //totalONhours = totalONhours/36e5;
-            dayLogs[deviceID].state.power.on.y_hours.push(totalONhours);
-            // Calculate Total OFF Hours
-            totalOFFhours = totalHours - totalONhours;
-            dayLogs[deviceID].state.power.off.y_hours.push(totalOFFhours);
-        } else {
-            dayLogs[deviceID].state.power.on.y_hours.push(0);
-            dayLogs[deviceID].state.power.off.y_hours.push(0);
+        for(; i<eventValue.length && fetchedTime<nextday; i++){
+            data[eventValue[i]] += eventTimestamp[i+1] - eventTimestamp[i];
+            lastState=eventValue[i]
+            fetchedTime = new Date(eventTimestamp[i+1])
         }
+        //fetchedTime will be in next day, so subtract extra duration
+        if(nextday < fetchedTime) data[lastState] -= fetchedTime - nextday;
+
+        // if(totalONhours != 0){
+        //     totalONhours = totalONhours/3600000;
+            dayLogs[deviceID].state.power.on.y_hours.push(data.on/3600000);
+            // Calculate Total OFF Hours
+            // totalOFFhours = totalHours - totalONhours;
+            dayLogs[deviceID].state.power.off.y_hours.push(data.off/3600000);
+        // } else {
+        //     dayLogs[deviceID].state.power.on.y_hours.push(0);
+        //     dayLogs[deviceID].state.power.off.y_hours.push(0);
+        // }
     }
-    dayLogs[deviceID].state.power.on.x_days.reverse()
-    dayLogs[deviceID].state.power.on.y_hours.reverse()
-    dayLogs[deviceID].state.power.off.x_days.reverse()
-    dayLogs[deviceID].state.power.off.y_hours.reverse()
     return dayLogs;
 }
 
 let getDataOfMonths = (deviceID,raw_data,beforeTime,afterTime) => {
-
-    var startMonth = new Date(beforeTime).getMonth()
-    var endMonth = new Date(afterTime).getMonth()
-    var year = new Date().getFullYear();
-
     var eventValue = raw_data[deviceID].state.power.value;
     var eventTimestamp = raw_data[deviceID].state.power.timestamp;
+    //the currentTime can be used for last duration calc
+    eventTimestamp.push(new Date(beforeTime).getTime());
 
-    var monthLogs = {
+    var dayLogs = {
         [deviceID] : {
             state : {
                 power: {
@@ -298,67 +288,44 @@ let getDataOfMonths = (deviceID,raw_data,beforeTime,afterTime) => {
            }
         }
     }
+
+    // Go through each day in a month
+    var day = new Date(afterTime);
+    var nextday = new Date(afterTime);
+    var year = day.getFullYear();
+    var lastState; //stores the last state of previous day to calc carry over duration for current day
     var MD = monthDiff(new Date(afterTime),new Date(beforeTime))
-    //console.log(monthDiff)
-    for(var j = 0; j < MD+1; j++) {
-        if(startMonth == -1){
-            year = new Date().getFullYear() - 1;
-            startMonth = 11
+    for(var a=0,i=0,fetchedTime = new Date(eventTimestamp[i]); a<=MD; a++) {
+        if(a>0) day.setMonth(day.getMonth()+1);
+        nextday.setMonth(nextday.getMonth()+1);
+
+        year = day.getFullYear();
+        var totalHours = 24*getTotalDaysInMonth(day.getMonth(),year);
+
+        var data= {
+            on: 0,
+            off: 0
         }
-        var totalDays = getTotalDaysInMonth(startMonth,year);
-        var totalHours = totalDays * 24;
+        
+        dayLogs[deviceID].state.power.on.x_months.push(getMonthName(day.getMonth()));
+        dayLogs[deviceID].state.power.off.x_months.push(getMonthName(day.getMonth()));
 
-
-        var totalONhours=0;
-        var totalOFFhours=0;
-        var isTimestampExists = false;
-        //console.log(startMonth)
-
-        monthLogs[deviceID].state.power.on.x_months.push(getMonthName(startMonth)+ ' ' + year);
-        monthLogs[deviceID].state.power.off.x_months.push(getMonthName(startMonth)+ ' '+ year );
-        //console.log(monthLogs[deviceID].state.power)
-        //console.log(getMonthName(startMonth))
-        for(var i=0;i<eventValue.length;i++){
-            var fetchedTime = new Date(eventTimestamp[i])
-            if(fetchedTime.getMonth() == startMonth && fetchedTime.getFullYear() == year){
-               if(eventValue[i] == 'on' && (eventValue[i+1] == 'off' || eventValue[i+1] == 'on')){
-                  //console.log("Extracted Timestamps: " + (eventTimestamp[i+1] - eventTimestamp[i]));
-                  totalONhours += eventTimestamp[i+1] - eventTimestamp[i]; 
-                  //startMonth--
-               }
-               //console.log("All Timestamps: " + eventTimestamp[i]);
-               //isTimestampExists = true;
-            } else {
-               //isTimestampExists = false; 
-            }
-        }
-        if(totalONhours != 0){
-            isTimestampExists = true
-        } else {
-            isTimestampExists = false;
+        if(lastState != undefined) {//add carry over duration
+            data[lastState] += fetchedTime - day;
         }
 
-        if(isTimestampExists == false){
-            //console.log("Timestamps: NO DATA");
-            monthLogs[deviceID].state.power.on.y_hours.push(0);
-            monthLogs[deviceID].state.power.off.y_hours.push(0);
-        } else {
-            //console.log("Total ON Hours Timestamp: " + totalONhours);
-            totalONhours = totalONhours/36000000;
-            //totalONhours = totalONhours/36e5;
-            monthLogs[deviceID].state.power.on.y_hours.push(totalONhours);
-            // Calculate Total OFF Hours
-            totalOFFhours = totalHours - totalONhours;
-            monthLogs[deviceID].state.power.off.y_hours.push(totalOFFhours);
+        for(; i<eventValue.length && fetchedTime<nextday; i++){
+            data[eventValue[i]] += eventTimestamp[i+1] - eventTimestamp[i];
+            lastState=eventValue[i]
+            fetchedTime = new Date(eventTimestamp[i+1])
         }
-        startMonth--
+        //fetchedTime will be in next day, so subtract extra duration
+        if(nextday < fetchedTime) data[lastState] -= fetchedTime - nextday;
+        
+        dayLogs[deviceID].state.power.on.y_hours.push(data.on/3600000);
+        dayLogs[deviceID].state.power.off.y_hours.push(data.off/3600000);
     }
-    monthLogs[deviceID].state.power.on.x_months.reverse()
-    monthLogs[deviceID].state.power.on.y_hours.reverse()
-    monthLogs[deviceID].state.power.off.x_months.reverse()
-    monthLogs[deviceID].state.power.off.y_hours.reverse()
-    //console.log(monthLogs[deviceID].state.power.on.x_months)
-    return monthLogs;
+    return dayLogs;
     
 }
 
@@ -395,20 +362,20 @@ function getAfterDate(beforeTime,ptype,pvalue){
         }
     } else if(ptype == "week"){
         if(pvalue == 1){
-            afterDate = new Date(dateOb.getFullYear(),dateOb.getMonth(),(dateOb.getDate()-7),dateOb.getHours(),dateOb.getMinutes(),dateOb.getSeconds(),dateOb.getMilliseconds()).toISOString()
+            afterDate = new Date(dateOb.getFullYear(),dateOb.getMonth(),(dateOb.getDate()-6)).toISOString()
         } else if(pvalue == 2){
-            afterDate = new Date(dateOb.getFullYear(),dateOb.getMonth(),(dateOb.getDate()-14),dateOb.getHours(),dateOb.getMinutes(),dateOb.getSeconds(),dateOb.getMilliseconds()).toISOString()
+            afterDate = new Date(dateOb.getFullYear(),dateOb.getMonth(),(dateOb.getDate()-13)).toISOString()
         }
     } else if(ptype == "month"){
       if(pvalue == 1){
-          afterDate = new Date(dateOb.getFullYear(),(dateOb.getMonth()-1),1,5,29,0,0).toISOString()
+          afterDate = new Date(dateOb.getFullYear(),dateOb.getMonth(), dateOb.getDate()-29).toISOString()
       } else if(pvalue == 3){
-          afterDate = new Date(dateOb.getFullYear(),(dateOb.getMonth()-3),1,5,29,0,0).toISOString()
+          afterDate = new Date(dateOb.getFullYear(),dateOb.getMonth()-3).toISOString()
       } else if(pvalue == 6){
-          afterDate = new Date(dateOb.getFullYear(),(dateOb.getMonth()-6),1,5,29,0,0).toISOString()
+          afterDate = new Date(dateOb.getFullYear(), dateOb.getMonth()-6).toISOString()
       }
     } else if(ptype == "year"){
-          afterDate = new Date((dateOb.getFullYear()-1),dateOb.getMonth(),(dateOb.getDate()),dateOb.getHours(),dateOb.getMinutes(),dateOb.getSeconds(),dateOb.getMilliseconds()).toISOString()
+          afterDate = new Date((dateOb.getFullYear()-1),dateOb.getMonth()).toISOString()
     }
     return afterDate
 }
