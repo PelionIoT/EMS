@@ -45,7 +45,7 @@ let getBrightnessGraphs = (req, res) => {
             afterTime = getAfterDate(currentTime,"month",6)
             //console.log("Before Date: " + currentTime + " After Date: " + afterTime)
             EMS_Raw.getEMS_RawData(req, "asc", currentTime, afterTime).then(function(raw_data){
-                var result = getDataOfBrightness(deviceID,raw_data,currentTime,afterTime)
+                var result = getDataOfBrightness(deviceID,raw_data,currentTime,afterTime,state)
                 console.log(currentTime)
                 res.status(200).send(result);
             },function(error){
@@ -194,6 +194,13 @@ function getDataOfBrightness(deviceID,raw_data,currentTime,afterTime,state) {
     totalHighHours = (totalHighHours*100)/totalHours
     totalMaxHours = (totalMaxHours*100)/totalHours
 
+    if(totalHours == 0){
+        totalLowHours = 0
+        totalNormHours = 0
+        totalMedHours = 0
+        totalHighHours = 0
+        totalMaxHours = 0
+    }
 
     monthLogs[deviceID].state[state].low.push(totalLowHours.toFixed(2))
     monthLogs[deviceID].state[state].norm.push(totalNormHours.toFixed(2))
