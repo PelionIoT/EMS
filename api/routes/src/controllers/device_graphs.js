@@ -82,7 +82,6 @@ let getDeviceGraphs = (req, res) => {
             //console.log("Before Date: " + currentTime + " After Date: " + afterTime)
             EMS_Raw.getEMS_RawData(req, "asc", currentTime, afterTime).then(function(raw_data){
                 var result = getDataOfMonths(deviceID,raw_data,currentTime,afterTime)
-                console.log(currentTime)
                 res.status(200).send(result);
             },function(error){
                 console.log(error)
@@ -93,7 +92,6 @@ let getDeviceGraphs = (req, res) => {
             //console.log("Before Date: " + currentTime + " After Date: " + afterTime)
             EMS_Raw.getEMS_RawData(req, "asc", currentTime, afterTime).then(function(raw_data){
                 var result = getDataOfMonths(deviceID,raw_data,currentTime,afterTime)
-                console.log(currentTime)
                 res.status(200).send(result);
             },function(error){
                 console.log(error)
@@ -108,10 +106,7 @@ let getDeviceGraphs = (req, res) => {
     {
         //console.log(currentTime)
         // Get last date of current year for beforeTime & last date of last year for afterTime
-        var dateOb = new Date(currentTime)
-        var beforeTime = new Date((dateOb.getFullYear()+1),0,1,5,0,0,0).toISOString()
         var afterTime = getAfterDate(currentTime,"year")
-        //console.log("Before Date: " + beforeTime + " After Date: " + afterTime)
        
         EMS_Raw.getEMS_RawData(req, "asc", currentTime, afterTime).then(function(raw_data){
             // Raw data returned by the devicelogs API
@@ -140,14 +135,16 @@ let getDataOfHours = (deviceID,raw_data,hoursCount) => {
         [deviceID] : {
             state : {
                 power: {
-                  on: {
-                    x_hours: [],
-                    y_hours: []
-                  },
-                  off: {
-                    x_hours: [],
-                    y_hours: []
-                  }
+                  days: [],  
+                  usage: {
+                    rating: "9W",
+                    currency: "INR",
+                    unit_cost: 4,  
+                    kWh: [],
+                    cost: []
+                  },  
+                  on_hours: [],
+                  off_hours: []
                }
            }
         }
@@ -166,8 +163,7 @@ let getDataOfHours = (deviceID,raw_data,hoursCount) => {
         var totalONhours=0;
         var totalOFFhours=0;
 
-        dayLogs[deviceID].state.power.on.x_hours.push(date+' '+getMonthName(month)+', '+year+' '+hour+':00');
-        dayLogs[deviceID].state.power.off.x_hours.push(date+' '+getMonthName(month)+', '+year+' '+hour+':00');
+        dayLogs[deviceID].state.power.days.push(date+' '+getMonthName(month)+', '+year+' '+hour+':00');
 
         for(var i=0;i<eventValue.length;i++){
             var fetchedTime = new Date(eventTimestamp[i])
@@ -182,15 +178,23 @@ let getDataOfHours = (deviceID,raw_data,hoursCount) => {
         }
 
         if(totalONhours != 0){
-            totalONhours = totalONhours/36000000;
-            //totalONhours = totalONhours/36e5;
-            dayLogs[deviceID].state.power.on.y_hours.push(totalONhours);
+            totalONhours = totalONhours/3600000;
+            var device_rating = 9
+            var watt_hrs_day = device_rating * totalONhours
+            var kWh_hrs_day = watt_hrs_day / 1000
+            var unit_cost = kWh_hrs_day * 4
+
+            dayLogs[deviceID].state.power.usage.kWh.push(kWh_hrs_day);
+            dayLogs[deviceID].state.power.usage.cost.push(unit_cost);
+            dayLogs[deviceID].state.power.on_hours.push(totalONhours);
             // Calculate Total OFF Hours
             totalOFFhours = totalHours - totalONhours;
-            dayLogs[deviceID].state.power.off.y_hours.push(totalOFFhours);
+            dayLogs[deviceID].state.power.off_hours.push(totalOFFhours);
         } else {
-            dayLogs[deviceID].state.power.on.y_hours.push(0);
-            dayLogs[deviceID].state.power.off.y_hours.push(0);
+            dayLogs[deviceID].state.power.usage.kWh.push(0);
+            dayLogs[deviceID].state.power.usage.cost.push(0);
+            dayLogs[deviceID].state.power.on_hours.push(0);
+            dayLogs[deviceID].state.power.off_hours.push(0);
         }
     }
     return dayLogs;
@@ -200,27 +204,28 @@ let getDataOfDays = (deviceID,raw_data,dayCount,beforeTime,afterTime) => {
     var eventValue = raw_data[deviceID].state.power.value;
     var eventTimestamp = raw_data[deviceID].state.power.timestamp;
 
-    for(var aa =0; aa<eventValue.length;aa++){
-        console.log(eventTimestamp[aa]+"  :  "+eventValue[aa])
-    }
     //the currentTime can be used for last duration calc
     eventTimestamp.push(new Date(beforeTime).getTime());
+
     var dayLogs = {
         [deviceID] : {
             state : {
                 power: {
-                  on: {
-                    x_days: [],
-                    y_hours: []
-                  },
-                  off: {
-                    x_days: [],
-                    y_hours: []
-                  }
+                  days: [],  
+                  usage: {
+                    rating: "9W",
+                    currency: "INR",
+                    unit_cost: 4,  
+                    kWh: [],
+                    cost: []
+                  },  
+                  on_hours: [],
+                  off_hours: []
                }
            }
         }
     }
+    
 
     // Go through each day in a month
     var day = new Date(afterTime);
@@ -230,15 +235,13 @@ let getDataOfDays = (deviceID,raw_data,dayCount,beforeTime,afterTime) => {
         if(a>0) day.setDate(day.getDate()+1);
         nextday.setDate(nextday.getDate()+1);
         var date = day.getDate()
-        var totalHours = 24;
 
         var data= {
             on: 0,
             off: 0
         }
         
-        dayLogs[deviceID].state.power.on.x_days.push(date+' '+getMonthName(day.getMonth()));
-        dayLogs[deviceID].state.power.off.x_days.push(date+' '+getMonthName(day.getMonth()));
+        dayLogs[deviceID].state.power.days.push(date+' '+getMonthName(day.getMonth()));
 
         if(lastState != undefined) {//add carry over duration
             data[lastState] += fetchedTime - day;
@@ -252,16 +255,17 @@ let getDataOfDays = (deviceID,raw_data,dayCount,beforeTime,afterTime) => {
         //fetchedTime will be in next day, so subtract extra duration
         if(nextday < fetchedTime) data[lastState] -= fetchedTime - nextday;
 
-        // if(totalONhours != 0){
-        //     totalONhours = totalONhours/3600000;
-            dayLogs[deviceID].state.power.on.y_hours.push(data.on/3600000);
-            // Calculate Total OFF Hours
-            // totalOFFhours = totalHours - totalONhours;
-            dayLogs[deviceID].state.power.off.y_hours.push(data.off/3600000);
-        // } else {
-        //     dayLogs[deviceID].state.power.on.y_hours.push(0);
-        //     dayLogs[deviceID].state.power.off.y_hours.push(0);
-        // }
+        var totalONhours = data.on/3600000
+        var device_rating = 9
+        var watt_hrs_day = device_rating * totalONhours
+        var kWh_hrs_day = watt_hrs_day / 1000
+        var unit_cost = kWh_hrs_day * 4
+
+        dayLogs[deviceID].state.power.usage.kWh.push(kWh_hrs_day);
+        dayLogs[deviceID].state.power.usage.cost.push(unit_cost);
+        dayLogs[deviceID].state.power.on_hours.push(totalONhours);
+        dayLogs[deviceID].state.power.off_hours.push(data.off/3600000);
+        
     }
     return dayLogs;
 }
@@ -276,14 +280,17 @@ let getDataOfMonths = (deviceID,raw_data,beforeTime,afterTime) => {
         [deviceID] : {
             state : {
                 power: {
-                  on: {
-                    x_months: [],
-                    y_hours: []
-                  },
-                  off: {
-                    x_months: [],
-                    y_hours: []
-                  }
+                  months: [],  
+                  usage: {
+                    rating: "9W",
+                    currency: "INR",
+                    unit_cost: 4,  
+                    on_days: [],
+                    kWh: [],
+                    cost: []
+                  },  
+                  on_hours: [],
+                  off_hours: []
                }
            }
         }
@@ -300,15 +307,14 @@ let getDataOfMonths = (deviceID,raw_data,beforeTime,afterTime) => {
         nextday.setMonth(nextday.getMonth()+1);
 
         year = day.getFullYear();
-        var totalHours = 24*getTotalDaysInMonth(day.getMonth(),year);
+        //var totalHours = 24*getTotalDaysInMonth(day.getMonth(),year);
 
         var data= {
             on: 0,
             off: 0
         }
         
-        dayLogs[deviceID].state.power.on.x_months.push(getMonthName(day.getMonth()));
-        dayLogs[deviceID].state.power.off.x_months.push(getMonthName(day.getMonth()));
+        dayLogs[deviceID].state.power.months.push(getMonthName(day.getMonth()));
 
         if(lastState != undefined) {//add carry over duration
             data[lastState] += fetchedTime - day;
@@ -322,8 +328,19 @@ let getDataOfMonths = (deviceID,raw_data,beforeTime,afterTime) => {
         //fetchedTime will be in next day, so subtract extra duration
         if(nextday < fetchedTime) data[lastState] -= fetchedTime - nextday;
         
-        dayLogs[deviceID].state.power.on.y_hours.push(data.on/3600000);
-        dayLogs[deviceID].state.power.off.y_hours.push(data.off/3600000);
+        var totalONhours = data.on/3600000
+        var device_rating = 9
+        var watt_hrs_day = device_rating * 24
+        var kWh_hrs_day = watt_hrs_day / 1000
+        var totalONDays = totalONhours / 24
+        var kWh_per_month = kWh_hrs_day * totalONDays
+        var unit_cost = kWh_per_month * 4
+
+        dayLogs[deviceID].state.power.usage.on_days.push(Math.round(totalONDays));
+        dayLogs[deviceID].state.power.usage.kWh.push(kWh_per_month);
+        dayLogs[deviceID].state.power.usage.cost.push(unit_cost);
+        dayLogs[deviceID].state.power.on_hours.push(totalONhours);
+        dayLogs[deviceID].state.power.off_hours.push(data.off/3600000);
     }
     return dayLogs;
     
