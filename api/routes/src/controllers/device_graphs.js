@@ -13,11 +13,7 @@ let getDeviceGraphs = (req, res) => {
     // Year = Any Year (ex: 2018)
     var pValue = req.query.pvalue;
 
-    // If specified then fetch particular device state else retrieve all.
-    var state = req.query.state;
-    var currentTime = new Date()
-    currentTime.setDate(-2)
-    currentTime = currentTime.toISOString();
+    var currentTime = new Date().toISOString();
 
     if(pType != undefined && pType == "Days" && pValue != undefined)
     {
@@ -129,6 +125,25 @@ let getDeviceGraphs = (req, res) => {
     
 }
 
+let PowerModel = {
+        duration: {
+          type: "",
+          value: []
+        },  
+        usage: {
+          rating: "9W",
+          currency: "INR",
+          unit_cost: 4,  
+          on_days: [],
+          on: [],
+          off: [],
+          kWh: [],
+          cost: []
+        } 
+}
+
+let stateID = "power"
+
 let getDataOfHours = (deviceID,raw_data,hoursCount,beforeTime,afterTime) => {
     var eventValue = raw_data[deviceID].state.power.value;
     var eventTimestamp = raw_data[deviceID].state.power.timestamp;
@@ -136,25 +151,15 @@ let getDataOfHours = (deviceID,raw_data,hoursCount,beforeTime,afterTime) => {
     //the currentTime can be used for last duration calc
     eventTimestamp.push(new Date(beforeTime).getTime());
 
-    var hourLogs = {
-        [deviceID] : {
-            state : {
-                power: {
-                  hours: [],  
-                  usage: {
-                    rating: "9W",
-                    currency: "INR",
-                    unit_cost: 4,  
-                    kWh: [],
-                    cost: []
-                  },  
-                  on_minutes: [],
-                  off_minutes: []
-               }
-           }
-        }
-    }
-    
+    var hourLogs = { [deviceID]: { state: { } } }
+
+    // Initalize monthsLogs
+    hourLogs[deviceID].state[stateID] = PowerModel
+    hourLogs[deviceID].state[stateID].duration.value = []
+    hourLogs[deviceID].state[stateID].usage.on = []
+    hourLogs[deviceID].state[stateID].usage.off = []
+    hourLogs[deviceID].state[stateID].usage.kWh = []
+    hourLogs[deviceID].state[stateID].usage.cost = []
 
     // Go through each date in a month
     var date = new Date(afterTime);
@@ -168,8 +173,9 @@ let getDataOfHours = (deviceID,raw_data,hoursCount,beforeTime,afterTime) => {
             on: 0,
             off: 0
         }
-        
-        hourLogs[deviceID].state.power.hours.push(date.getDate()+' '+getMonthName(date.getMonth())+', '+date.getFullYear()+' '+date.getHours()+':00');
+
+        hourLogs[deviceID].state[stateID].duration.type = "Hours"
+        hourLogs[deviceID].state[stateID].duration.value.push(date.getDate()+' '+getMonthName(date.getMonth())+', '+date.getFullYear()+' '+date.getHours()+':00');
 
         if(lastState != undefined) {//add carry over duration
             data[lastState] += fetchedTime - date;
@@ -189,12 +195,13 @@ let getDataOfHours = (deviceID,raw_data,hoursCount,beforeTime,afterTime) => {
         var kWh_hrs = watt_hrs / 1000
         var unit_cost = kWh_hrs * 4
 
-        hourLogs[deviceID].state.power.usage.kWh.push(kWh_hrs);
-        hourLogs[deviceID].state.power.usage.cost.push(unit_cost);
-        hourLogs[deviceID].state.power.on_minutes.push(totalONhours*60);
-        hourLogs[deviceID].state.power.off_minutes.push(data.off/60000);
+        hourLogs[deviceID].state[stateID].usage.kWh.push(kWh_hrs);
+        hourLogs[deviceID].state[stateID].usage.cost.push(unit_cost);
+        hourLogs[deviceID].state[stateID].usage.on.push(totalONhours*60);
+        hourLogs[deviceID].state[stateID].usage.off.push(data.off/60000);
         
     }
+
     return hourLogs;
 }
 
@@ -205,25 +212,16 @@ let getDataOfDays = (deviceID,raw_data,dayCount,beforeTime,afterTime) => {
     //the currentTime can be used for last duration calc
     eventTimestamp.push(new Date(beforeTime).getTime());
 
-    var dayLogs = {
-        [deviceID] : {
-            state : {
-                power: {
-                  days: [],  
-                  usage: {
-                    rating: "9W",
-                    currency: "INR",
-                    unit_cost: 4,  
-                    kWh: [],
-                    cost: []
-                  },  
-                  on_hours: [],
-                  off_hours: []
-               }
-           }
-        }
-    }
-    
+    var daysLogs = { [deviceID]: { state: { } } }
+
+    // Initalize monthsLogs
+    daysLogs[deviceID].state[stateID] = PowerModel
+    daysLogs[deviceID].state[stateID].duration.value = []
+    daysLogs[deviceID].state[stateID].usage.on = []
+    daysLogs[deviceID].state[stateID].usage.off = []
+    daysLogs[deviceID].state[stateID].usage.kWh = []
+    daysLogs[deviceID].state[stateID].usage.cost = []
+    //daysLogs[deviceID].state[stateID].usage.on_days = []
 
     // Go through each day in a month
     var day = new Date(afterTime);
@@ -238,8 +236,10 @@ let getDataOfDays = (deviceID,raw_data,dayCount,beforeTime,afterTime) => {
             on: 0,
             off: 0
         }
+
         
-        dayLogs[deviceID].state.power.days.push(date+' '+getMonthName(day.getMonth()));
+        daysLogs[deviceID].state[stateID].duration.type = "Days"
+        daysLogs[deviceID].state[stateID].duration.value.push(date + ' ' + getMonthName(day.getMonth()))
 
         if(lastState != undefined) {//add carry over duration
             data[lastState] += fetchedTime - day;
@@ -259,13 +259,13 @@ let getDataOfDays = (deviceID,raw_data,dayCount,beforeTime,afterTime) => {
         var kWh_hrs_day = watt_hrs_day / 1000
         var unit_cost = kWh_hrs_day * 4
 
-        dayLogs[deviceID].state.power.usage.kWh.push(kWh_hrs_day);
-        dayLogs[deviceID].state.power.usage.cost.push(unit_cost);
-        dayLogs[deviceID].state.power.on_hours.push(totalONhours);
-        dayLogs[deviceID].state.power.off_hours.push(data.off/3600000);
+        daysLogs[deviceID].state[stateID].usage.kWh.push(kWh_hrs_day)
+        daysLogs[deviceID].state[stateID].usage.cost.push(unit_cost)
+        daysLogs[deviceID].state[stateID].usage.on.push(totalONhours)
+        daysLogs[deviceID].state[stateID].usage.off.push(data.off/3600000)
         
     }
-    return dayLogs;
+    return daysLogs;
 }
 
 let getDataOfMonths = (deviceID,raw_data,beforeTime,afterTime) => {
@@ -274,25 +274,16 @@ let getDataOfMonths = (deviceID,raw_data,beforeTime,afterTime) => {
     //the currentTime can be used for last duration calc
     eventTimestamp.push(new Date(beforeTime).getTime());
 
-    var dayLogs = {
-        [deviceID] : {
-            state : {
-                power: {
-                  months: [],  
-                  usage: {
-                    rating: "9W",
-                    currency: "INR",
-                    unit_cost: 4,  
-                    on_days: [],
-                    kWh: [],
-                    cost: []
-                  },  
-                  on_hours: [],
-                  off_hours: []
-               }
-           }
-        }
-    }
+    var monthsLogs = { [deviceID]: { state: { } } }
+
+    // Initalize monthsLogs
+    monthsLogs[deviceID].state[stateID] = PowerModel
+    monthsLogs[deviceID].state[stateID].duration.value = []
+    monthsLogs[deviceID].state[stateID].usage.on = []
+    monthsLogs[deviceID].state[stateID].usage.off = []
+    monthsLogs[deviceID].state[stateID].usage.kWh = []
+    monthsLogs[deviceID].state[stateID].usage.cost = []
+    monthsLogs[deviceID].state[stateID].usage.on_days = []
 
     // Go through each day in a month
     var day = new Date(afterTime);
@@ -305,14 +296,15 @@ let getDataOfMonths = (deviceID,raw_data,beforeTime,afterTime) => {
         nextday.setMonth(nextday.getMonth()+1);
 
         year = day.getFullYear();
-        //var totalHours = 24*getTotalDaysInMonth(day.getMonth(),year);
+        var totalHours = 24*getTotalDaysInMonth(day.getMonth(),year);
 
         var data= {
             on: 0,
             off: 0
         }
-        
-        dayLogs[deviceID].state.power.months.push(getMonthName(day.getMonth()));
+
+        monthsLogs[deviceID].state[stateID].duration.type = "Months"
+        monthsLogs[deviceID].state[stateID].duration.value.push(getMonthName(day.getMonth()))
 
         if(lastState != undefined) {//add carry over duration
             data[lastState] += fetchedTime - day;
@@ -334,13 +326,14 @@ let getDataOfMonths = (deviceID,raw_data,beforeTime,afterTime) => {
         var kWh_per_month = kWh_hrs_day * totalONDays
         var unit_cost = kWh_per_month * 4
 
-        dayLogs[deviceID].state.power.usage.on_days.push(Math.round(totalONDays));
-        dayLogs[deviceID].state.power.usage.kWh.push(kWh_per_month);
-        dayLogs[deviceID].state.power.usage.cost.push(unit_cost);
-        dayLogs[deviceID].state.power.on_hours.push(totalONhours);
-        dayLogs[deviceID].state.power.off_hours.push(data.off/3600000);
+        monthsLogs[deviceID].state[stateID].usage.on_days.push(Math.round(totalONDays))
+        monthsLogs[deviceID].state[stateID].usage.kWh.push(kWh_per_month)
+        monthsLogs[deviceID].state[stateID].usage.cost.push(unit_cost)
+        monthsLogs[deviceID].state[stateID].usage.on.push(totalONhours)
+        monthsLogs[deviceID].state[stateID].usage.off.push(data.off/3600000)
+
     }
-    return dayLogs;
+    return monthsLogs;
     
 }
 
